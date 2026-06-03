@@ -13,6 +13,10 @@ const roomSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
+    roomImage: {
+      type: String,
+      default: '',
+    },
     isAvailable: {
       type: Boolean,
       default: true,

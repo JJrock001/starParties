@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -7,6 +8,7 @@ type Room = {
   _id: string;
   roomName: string;
   roomCode: string;
+  roomImage: string;
   isAvailable: boolean;
 };
 
@@ -110,13 +112,24 @@ export default function Home() {
                 <Link
                   key={room._id}
                   href={`/reservation?roomId=${room._id}`}
-                  className="rounded-3xl border border-white/10 bg-slate-950/60 p-6 transition hover:-translate-y-1 hover:border-emerald-300 hover:bg-slate-900"
+                  className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/60 transition hover:-translate-y-1 hover:border-emerald-300 hover:bg-slate-900"
                 >
-                  <p className="text-sm uppercase tracking-[0.2em] text-emerald-300">{room.roomCode}</p>
-                  <h3 className="mt-3 text-xl font-semibold text-white">{room.roomName}</h3>
-                  <p className="mt-2 text-sm text-slate-300">
-                    {room.isAvailable ? "Available now" : "Currently unavailable"}
-                  </p>
+                  <div className="relative h-44 w-full bg-slate-900">
+                    <Image
+                      src={room.roomImage || "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQwIiBoZWlnaHQ9IjM2MCIgdmlld0JveD0iMCAwIDY0MCAzNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjY0MCIgaGVpZ2h0PSIzNjAiIGZpbGw9IiMxZjI5MzciLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZmlsbD0iI2VjZjBmMyIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5Sb29tIEltYWdlPC90ZXh0Pjwvc3ZnPg=="}
+                      alt={room.roomName}
+                      fill
+                      unoptimized
+                      className="object-cover"
+                    />
+                  </div>
+                  <div className="p-6">
+                    <p className="text-sm uppercase tracking-[0.2em] text-emerald-300">{room.roomCode}</p>
+                    <h3 className="mt-3 text-xl font-semibold text-white">{room.roomName}</h3>
+                    <p className="mt-2 text-sm text-slate-300">
+                      {room.isAvailable ? "Available now" : "Currently unavailable"}
+                    </p>
+                  </div>
                 </Link>
               ))}
             </div>

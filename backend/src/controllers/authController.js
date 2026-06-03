@@ -96,6 +96,23 @@ const updateMe = async (req, res) => {
   }
 };
 
+const deleteProfilePicture = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.profileImage = '';
+    await user.save();
+
+    return res.status(200).json({ message: 'Profile picture removed', user: sanitizeUser(user) });
+  } catch (error) {
+    return res.status(500).json({ message: 'Could not remove profile picture', error: error.message });
+  }
+};
+
 const register = async (req, res) => {
   try {
     const {
@@ -187,4 +204,5 @@ module.exports = {
   login,
   getMe,
   updateMe,
+  deleteProfilePicture,
 };

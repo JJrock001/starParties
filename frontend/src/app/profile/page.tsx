@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const MAX_IMAGE_DIMENSION = 512;
@@ -72,6 +73,7 @@ const compressImage = async (file: File) => {
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
+  const router = useRouter();
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -163,8 +165,38 @@ export default function ProfilePage() {
 
       setUser(data.user || null);
       setMessage("Profile updated successfully.");
+      try {
+        router.refresh();
+      } catch {}
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Something went wrong");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemovePicture = async () => {
+    setSaving(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/auth/me/picture", {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.message || "Remove picture failed");
+
+      setForm((f) => ({ ...f, profileImage: "" }));
+      setUser(data.user || null);
+      setMessage("Profile picture removed.");
+      try {
+        router.refresh();
+      } catch {}
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Could not remove picture");
     } finally {
       setSaving(false);
     }
@@ -286,6 +318,16 @@ export default function ProfilePage() {
             >
               {saving ? "Saving changes..." : "Save profile"}
             </button>
+            {form.profileImage ? (
+              <button
+                type="button"
+                onClick={handleRemovePicture}
+                disabled={saving}
+                className="mt-3 w-full rounded-2xl border border-white/15 bg-transparent px-4 py-3 font-semibold text-white transition hover:border-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                Remove profile picture
+              </button>
+            ) : null}
           </div>
         </form>
 
