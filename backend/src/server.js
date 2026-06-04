@@ -2,7 +2,6 @@ require('dotenv').config();
 
 const cors = require('cors');
 const express = require('express');
-const cookieParser = require('cookie-parser');
 
 const connectDB = require('./config/db');
 const apiRoutes = require('./routes');
@@ -32,7 +31,6 @@ app.use(
     credentials: true,
   })
 );
-app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 
 app.get('/health', (req, res) => {
