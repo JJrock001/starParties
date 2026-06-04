@@ -46,27 +46,6 @@ const seedDefaultRoom = async () => {
   );
 };
 
-const start = async () => {
-  try {
-    await connectDB();
-
-    try {
-      await seedDefaultRoom();
-    } catch (seedErr) {
-      console.error('Room seed failed:', seedErr.message || seedErr);
-    }
-
-    app.listen(port, () => {
-      console.log(`API running on http://localhost:${port}`);
-    });
-  } catch (err) {
-    console.error('Failed to start server:', err.message || err);
-    process.exit(1);
-  }
-};
-
-start();
-
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -88,6 +67,23 @@ app.get('/health', (req, res) => {
 
 app.use('/api', apiRoutes);
 
-app.listen(port, () => {
-  console.log(`API running on http://localhost:${port}`);
-});
+const start = async () => {
+  try {
+    await connectDB();
+
+    try {
+      await seedDefaultRoom();
+    } catch (seedErr) {
+      console.error('Room seed failed:', seedErr.message || seedErr);
+    }
+
+    app.listen(port, () => {
+      console.log(`API running on http://localhost:${port}`);
+    });
+  } catch (err) {
+    console.error('Failed to start server:', err.message || err);
+    process.exit(1);
+  }
+};
+
+start();
