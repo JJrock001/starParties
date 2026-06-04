@@ -303,11 +303,182 @@ function MembersTab({ token }: { token: string }) {
   );
 }
 
+// ─── Activities Tab ───────────────────────────────────────────
+
+interface AdminActivity {
+  _id: string;
+  badge: string;
+  color: 'r'|'y'|'b'|'o';
+  date: string;
+  name: string;
+  nameTh: string;
+  tag: 'jam'|'live'|'open'|'other';
+  tagLabel: string;
+  active: boolean;
+  order: number;
+}
+
+const EMPTY_ACT: Omit<AdminActivity, '_id'> = {
+  badge:"", color:"r", date:"", name:"", nameTh:"", tag:"jam", tagLabel:"JAM", active:true, order:0,
+};
+
+const COLOR_LABELS = { r:"Red", y:"Yellow", b:"Blue", o:"Orange" };
+const TAG_LABELS   = { jam:"JAM", live:"LIVE", open:"OPEN MIC", other:"OTHER" };
+const COLOR_HEX    = { r:"#E04E38", y:"#FFDE25", b:"#4690D5", o:"#DD643F" };
+
+function ActivitiesTab({ token }: { token: string }) {
+  const [activities, setActivities] = useState<AdminActivity[]>([]);
+  const [form, setForm] = useState<(Omit<AdminActivity,"_id"> & { _id?: string }) | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    const res = await api(token, "/activities");
+    if (res.ok) setActivities((await res.json()).activities);
+  }, [token]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function del(id: string, name: string) {
+    if (!confirm(`ลบกิจกรรม "${name}"?`)) return;
+    await api(token, `/activities/${id}`, { method: "DELETE" });
+    load();
+  }
+
+  async function save() {
+    if (!form) return;
+    setSaving(true);
+    const isNew = !form._id;
+    await api(token, isNew ? "/activities" : `/activities/${form._id}`, {
+      method: isNew ? "POST" : "PUT",
+      body: JSON.stringify(form),
+    });
+    setSaving(false);
+    setForm(null);
+    load();
+  }
+
+  async function toggleActive(act: AdminActivity) {
+    await api(token, `/activities/${act._id}`, { method: "PUT", body: JSON.stringify({ ...act, active: !act.active }) });
+    load();
+  }
+
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm(f => f ? { ...f, [k]: e.target.value } : f);
+
+  return (
+    <div className="adm-section">
+      {form ? (
+        /* ── Form ── */
+        <div className="adm-act-form">
+          <div className="adm-act-form-head">
+            {form._id ? "แก้ไขกิจกรรม" : "สร้างกิจกรรมใหม่"}
+          </div>
+          <div className="adm-act-fields">
+            <div className="adm-field">
+              <label>BADGE (1–2 ตัวอักษร)</label>
+              <input value={form.badge} onChange={set("badge")} maxLength={2} placeholder="S"/>
+            </div>
+            <div className="adm-field">
+              <label>COLOR</label>
+              <select className="adm-select" value={form.color} onChange={set("color")}>
+                {(Object.keys(COLOR_LABELS) as (keyof typeof COLOR_LABELS)[]).map(k => (
+                  <option key={k} value={k}>{COLOR_LABELS[k]}</option>
+                ))}
+              </select>
+            </div>
+            <div className="adm-field">
+              <label>DATE · วันที่แสดง</label>
+              <input value={form.date} onChange={set("date")} placeholder="SAT 14 JUN"/>
+            </div>
+            <div className="adm-field">
+              <label>NAME · ชื่อกิจกรรม (EN)</label>
+              <input value={form.name} onChange={set("name")} placeholder="Star Jam #06"/>
+            </div>
+            <div className="adm-field adm-field-wide">
+              <label>DESCRIPTION · รายละเอียด (TH)</label>
+              <input value={form.nameTh} onChange={set("nameTh")} placeholder="แจมสดทุกแนว · Common Room"/>
+            </div>
+            <div className="adm-field">
+              <label>TAG TYPE</label>
+              <select className="adm-select" value={form.tag} onChange={set("tag")}>
+                {(Object.keys(TAG_LABELS) as (keyof typeof TAG_LABELS)[]).map(k => (
+                  <option key={k} value={k}>{TAG_LABELS[k]}</option>
+                ))}
+              </select>
+            </div>
+            <div className="adm-field">
+              <label>TAG LABEL · ป้ายแท็ก</label>
+              <input value={form.tagLabel} onChange={set("tagLabel")} placeholder="JAM"/>
+            </div>
+            <div className="adm-field">
+              <label>ORDER · ลำดับ</label>
+              <input type="number" value={form.order} onChange={e => setForm(f => f ? { ...f, order: Number(e.target.value) } : f)}/>
+            </div>
+          </div>
+          <div className="adm-act-form-foot">
+            <label className="adm-check">
+              <input type="checkbox" checked={form.active} onChange={e => setForm(f => f ? { ...f, active: e.target.checked } : f)}/>
+              แสดงบนเว็บไซต์ (active)
+            </label>
+            <div className="adm-acts">
+              <button className="adm-btn save" onClick={save} disabled={saving}>{saving ? "..." : "บันทึก"}</button>
+              <button className="adm-btn cancel" onClick={() => setForm(null)}>ยกเลิก</button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="adm-toolbar">
+          <button className="adm-btn-new" onClick={() => setForm({ ...EMPTY_ACT })}>+ สร้างกิจกรรมใหม่</button>
+          <span className="adm-count">{activities.length} กิจกรรม</span>
+        </div>
+      )}
+
+      <div className="adm-table-wrap">
+        <table className="adm-table">
+          <thead>
+            <tr>
+              <th>Badge</th><th>วันที่</th><th>ชื่อกิจกรรม</th><th>รายละเอียด</th><th>Tag</th><th>สถานะ</th><th>ลำดับ</th><th>จัดการ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {activities.length === 0 && (
+              <tr><td colSpan={8} className="adm-empty">ยังไม่มีกิจกรรม — กดสร้างกิจกรรมใหม่ด้านบน</td></tr>
+            )}
+            {activities.map(a => (
+              <tr key={a._id} style={!a.active ? { opacity: 0.45 } : {}}>
+                <td>
+                  <div className="adm-ev-badge" style={{ background: COLOR_HEX[a.color] }}>{a.badge}</div>
+                </td>
+                <td className="adm-mono">{a.date}</td>
+                <td><b>{a.name}</b></td>
+                <td className="adm-small">{a.nameTh}</td>
+                <td><span className="adm-pill day">{a.tagLabel}</span></td>
+                <td>
+                  <button className={"adm-btn " + (a.active ? "save" : "cancel")} onClick={() => toggleActive(a)}>
+                    {a.active ? "แสดง" : "ซ่อน"}
+                  </button>
+                </td>
+                <td className="adm-mono adm-small">{a.order}</td>
+                <td>
+                  <div className="adm-acts">
+                    <button className="adm-btn edit" onClick={() => setForm({ ...a })}>แก้ไข</button>
+                    <button className="adm-btn del"  onClick={() => del(a._id, a.name)}>ลบ</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────
 
 export default function AdminPage() {
   const [token, setToken] = useState<string | null>(null);
-  const [tab, setTab]     = useState<"bookings" | "members">("bookings");
+  const [tab, setTab]     = useState<"bookings" | "members" | "activities">("bookings");
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -330,15 +501,20 @@ export default function AdminPage() {
       </div>
 
       <div className="adm-tabbar">
-        <button className={"adm-tab" + (tab === "bookings" ? " active" : "")} onClick={() => setTab("bookings")}>
+        <button className={"adm-tab" + (tab === "bookings"   ? " active" : "")} onClick={() => setTab("bookings")}>
           RESERVATIONS · ตารางจอง
         </button>
-        <button className={"adm-tab" + (tab === "members" ? " active" : "")} onClick={() => setTab("members")}>
+        <button className={"adm-tab" + (tab === "members"    ? " active" : "")} onClick={() => setTab("members")}>
           MEMBERS · สมาชิก
+        </button>
+        <button className={"adm-tab" + (tab === "activities" ? " active" : "")} onClick={() => setTab("activities")}>
+          ACTIVITIES · กิจกรรม
         </button>
       </div>
 
-      {tab === "bookings" ? <ReservationsTab token={token}/> : <MembersTab token={token}/>}
+      {tab === "bookings"   && <ReservationsTab token={token}/>}
+      {tab === "members"    && <MembersTab token={token}/>}
+      {tab === "activities" && <ActivitiesTab token={token}/>}
     </div>
   );
 }

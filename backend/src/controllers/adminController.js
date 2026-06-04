@@ -1,5 +1,6 @@
-const Booking = require('../models/Booking');
-const Member  = require('../models/Member');
+const Booking  = require('../models/Booking');
+const Member   = require('../models/Member');
+const Activity = require('../models/Activity');
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN    || 'sp-admin-tok';
 const ADMIN_USER  = process.env.ADMIN_USERNAME || 'admin';
@@ -91,4 +92,52 @@ const deleteMember = async (req, res) => {
   }
 };
 
-module.exports = { login, getWeeks, getBookings, deleteBooking, patchBooking, getMembers, updateMember, deleteMember };
+// ─── Activities ──────────────────────────────────────────────
+
+const getActivities = async (req, res) => {
+  try {
+    const activities = await Activity.find().sort({ order: 1, createdAt: -1 }).lean();
+    return res.json({ activities });
+  } catch (e) {
+    return res.status(500).json({ message: e.message });
+  }
+};
+
+const createActivity = async (req, res) => {
+  try {
+    const { badge, color, date, name, nameTh, tag, tagLabel, active, order } = req.body;
+    if (!badge || !date || !name || !tagLabel) {
+      return res.status(400).json({ message: 'badge, date, name, tagLabel are required' });
+    }
+    const activity = await Activity.create({ badge, color, date, name, nameTh, tag, tagLabel, active, order });
+    return res.status(201).json({ activity });
+  } catch (e) {
+    return res.status(500).json({ message: e.message });
+  }
+};
+
+const updateActivity = async (req, res) => {
+  try {
+    const activity = await Activity.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    if (!activity) return res.status(404).json({ message: 'Activity not found' });
+    return res.json({ activity });
+  } catch (e) {
+    return res.status(500).json({ message: e.message });
+  }
+};
+
+const deleteActivity = async (req, res) => {
+  try {
+    await Activity.findByIdAndDelete(req.params.id);
+    return res.json({ message: 'Deleted' });
+  } catch (e) {
+    return res.status(500).json({ message: e.message });
+  }
+};
+
+module.exports = {
+  login,
+  getWeeks, getBookings, deleteBooking, patchBooking,
+  getMembers, updateMember, deleteMember,
+  getActivities, createActivity, updateActivity, deleteActivity,
+};

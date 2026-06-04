@@ -284,27 +284,40 @@ function About() {
 
 // ─── ACTIVITY ─────────────────────────────────────────────────────────────────
 
-const EVENTS = [
-  { badge:"S", color:"r", date:"SAT 14 JUN", name:"Star Jam #05", th:"แจมสดทุกแนว เปิดเวทีให้ทุกคน · Common Room", tag:"jam", tagLabel:"JAM" },
-  { badge:"O", color:"y", date:"FRI 20 JUN", name:"Open Mic Night", th:"ใครอยากขึ้นก็ขึ้น ไม่ต้องสมัคร · Studio B", tag:"open", tagLabel:"OPEN MIC" },
-  { badge:"R", color:"b", date:"SAT 28 JUN", name:"Rev Up! Rooftop", th:"ไลฟ์เซ็ตบนดาดฟ้า พระอาทิตย์ตก · Rooftop", tag:"live", tagLabel:"LIVE" },
-  { badge:"W", color:"o", date:"EVERY WED",  name:"Do It For The Plot", th:"ซ้อมรวมประจำสัปดาห์ มาเล่นเล่น · Jam Room", tag:"jam", tagLabel:"JAM" },
+interface ActivityItem {
+  _id: string;
+  badge: string;
+  color: string;
+  date: string;
+  name: string;
+  nameTh: string;
+  tag: string;
+  tagLabel: string;
+}
+
+const FALLBACK_EVENTS: ActivityItem[] = [
+  { _id:"1", badge:"S", color:"r", date:"SAT 14 JUN", name:"Star Jam #05",        nameTh:"แจมสดทุกแนว เปิดเวทีให้ทุกคน · Common Room", tag:"jam",  tagLabel:"JAM" },
+  { _id:"2", badge:"O", color:"y", date:"FRI 20 JUN", name:"Open Mic Night",       nameTh:"ใครอยากขึ้นก็ขึ้น ไม่ต้องสมัคร · Studio B",    tag:"open", tagLabel:"OPEN MIC" },
+  { _id:"3", badge:"R", color:"b", date:"SAT 28 JUN", name:"Rev Up! Rooftop",      nameTh:"ไลฟ์เซ็ตบนดาดฟ้า พระอาทิตย์ตก · Rooftop",     tag:"live", tagLabel:"LIVE" },
+  { _id:"4", badge:"W", color:"o", date:"EVERY WED",  name:"Do It For The Plot",   nameTh:"ซ้อมรวมประจำสัปดาห์ มาเล่นเล่น · Jam Room",     tag:"jam",  tagLabel:"JAM" },
 ];
+
 const GALLERY = [{ cap:"STAR JAM #04" },{ cap:"OPEN MIC · MAY" },{ cap:"ROOFTOP SET" }];
 
-function Activity({ onOpen }: { onOpen:(m:ModalType)=>void }) {
+function Activity({ onOpen, events }: { onOpen:(m:ModalType)=>void; events: ActivityItem[] }) {
+  const list = events.length > 0 ? events : FALLBACK_EVENTS;
   return (
     <section id="activity">
       <div className="sec-head"><h2>Activity &amp; Gallery</h2><span className="th">กิจกรรม &amp; ภาพบรรยากาศ</span></div>
       <div className="activity">
         <div className="cal">
-          {EVENTS.map((e,i) => (
-            <div className="ev" key={i} onClick={() => onOpen("booking")}>
+          {list.map((e) => (
+            <div className="ev" key={e._id} onClick={() => onOpen("booking")}>
               <div className={"ev-badge " + e.color}>{e.badge}</div>
               <div className="ev-date">{e.date}</div>
               <div className="ev-mid">
                 <div className="ev-name">{e.name}</div>
-                <div className="ev-th">{e.th}</div>
+                <div className="ev-th">{e.nameTh}</div>
               </div>
               <div className={"ev-tag " + e.tag}>{e.tagLabel}</div>
             </div>
@@ -862,6 +875,7 @@ export default function HomePage() {
   const [modal, setModal] = useState<ModalType>(null);
   const [bookings, setBookings] = useState<BookingsMap>({});
   const [mode, setMode] = useState<Mode>("launch");
+  const [events, setEvents] = useState<ActivityItem[]>([]);
 
   const fetchBookings = async () => {
     try {
@@ -873,7 +887,10 @@ export default function HomePage() {
     } catch {}
   };
 
-  useEffect(() => { fetchBookings(); }, []);
+  useEffect(() => {
+    fetchBookings();
+    fetch("/api/activities").then(r => r.ok ? r.json() : null).then(d => { if (d?.activities) setEvents(d.activities); }).catch(() => {});
+  }, []);
 
   const handleStateChange = async (state: "state1"|"state2") => {
     try {
@@ -897,7 +914,7 @@ export default function HomePage() {
         <Marquee/>
         <Hero onOpen={openModal}/>
         <About/>
-        <Activity onOpen={openModal}/>
+        <Activity onOpen={openModal} events={events}/>
         <Footer onOpen={openModal}/>
       </div>
       <TestPanel
