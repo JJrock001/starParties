@@ -83,6 +83,18 @@ const slotLabel = (s: { start:string; end:string }) => `${s.start}–${s.end}`;
 
 const WEEKDAY_KEYS = new Set(["mon","tue","wed","thu","fri"]);
 
+// Deterministic color per band name
+const BAND_COLORS = [
+  "#E04E38","#E8734A","#E8A030","#C8B820",
+  "#5AAA60","#3AACAC","#4690D5","#7868C8",
+  "#C050A0","#D4785A","#A08030","#60B0A0",
+];
+function bandColor(band: string): string {
+  let h = 0;
+  for (let i = 0; i < band.length; i++) h = (h * 31 + band.charCodeAt(i)) & 0xffff;
+  return BAND_COLORS[h % BAND_COLORS.length];
+}
+
 // Returns the chain head/tail ids of a consecutive selection (works across midnight)
 function getChainEdges(ids: string[], slots: Record<string, SlotDef>) {
   if (ids.length === 0) return null;
@@ -528,6 +540,7 @@ function SlotChip({ slot, bookings, selected, onPick }: {
   return (
     <div className="chip-wrap">
       <button type="button" className={cls}
+              style={booked ? { background: bandColor(booked.band) } : undefined}
               onClick={() => onPick(slot)} disabled={!!booked}>
         <span className="chip-time">{slotLabel(slot)}</span>
         <span className="chip-band">{booked ? booked.band : (slot.night ? "FREE" : "ว่าง")}</span>
