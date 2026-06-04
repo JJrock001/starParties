@@ -81,11 +81,6 @@ function daySlots(day: typeof DAYS[number]): { day: SlotDef[]; night: SlotDef[] 
 const slotLabel = (s: { start:string; end:string }) => `${s.start}–${s.end}`;
 
 const WEEKDAY_KEYS = new Set(["mon","tue","wed","thu","fri"]);
-const BLOCKED_STARTS = new Set(["18:00","19:00","20:00"]);
-
-function isBlockedSlot(slot: SlotDef): boolean {
-  return !slot.night && WEEKDAY_KEYS.has(slot.day) && BLOCKED_STARTS.has(slot.start);
-}
 
 // Returns the chain head/tail ids of a consecutive selection (works across midnight)
 function getChainEdges(ids: string[], slots: Record<string, SlotDef>) {
@@ -508,7 +503,7 @@ function SlotLegend() {
       <span className="lg"><i className="sw sel"></i>เลือกอยู่</span>
       <span className="lg"><i className="sw night"></i>หลังเที่ยงคืน · ฟรีไม่จำกัด</span>
       <span className="lg"><i className="sw booked"></i>จองแล้ว</span>
-      <span className="lg"><i className="sw lock"></i>ปิด / ติดโควตา</span>
+      <span className="lg"><i className="sw lock"></i>ติดโควตา</span>
     </div>
   );
 }
@@ -517,19 +512,17 @@ function SlotChip({ slot, bookings, selected, onPick }: {
   slot: SlotDef; bookings: BookingsMap; selected: string[]; onPick:(s:SlotDef)=>void;
 }) {
   const booked = bookings[slot.id];
-  const blocked = isBlockedSlot(slot);
   const isSel = selected.includes(slot.id);
   let cls = "chip";
   if (slot.night) cls += " night";
   if (booked) cls += " booked";
-  else if (blocked) cls += " lock";
   else if (isSel) cls += " sel";
-  const title = booked ? `จองแล้ว · ${booked.band}` : blocked ? "ปิดให้บริการ 18:00–21:00 วันธรรมดา" : "ว่าง · กดเพื่อเลือก";
+  const title = booked ? `จองแล้ว · ${booked.band}` : "ว่าง · กดเพื่อเลือก";
   return (
     <button type="button" className={cls} title={title}
-            onClick={() => onPick(slot)} disabled={!!booked || blocked}>
+            onClick={() => onPick(slot)} disabled={!!booked}>
       <span className="chip-time">{slotLabel(slot)}</span>
-      <span className="chip-band">{booked ? booked.band : blocked ? "ปิด" : (slot.night ? "FREE" : "ว่าง")}</span>
+      <span className="chip-band">{booked ? booked.band : (slot.night ? "FREE" : "ว่าง")}</span>
     </button>
   );
 }
@@ -611,7 +604,7 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
   const MAX_CONSECUTIVE_WEEKDAY = 3;
 
   function pickSlot(slot: SlotDef) {
-    if (bookings[slot.id] || isBlockedSlot(slot)) return;
+    if (bookings[slot.id]) return;
     setError(null);
 
     if (selected.length === 0) { setSelected([slot.id]); return; }
@@ -760,7 +753,7 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
               })()}
               <SlotLegend/>
               <div className="grid-block">
-                <div className="grid-banner">WEEKDAYS · จันทร์–ศุกร์ <span>17:00+ · ปิด 18:00–21:00 · สูงสุด 3 ชม./ครั้ง · 3 ชม./สัปดาห์</span></div>
+                <div className="grid-banner">WEEKDAYS · จันทร์–ศุกร์ <span>17:00+ · สูงสุด 3 ชม./ครั้ง · 3 ชม./สัปดาห์</span></div>
                 {DAYS.filter(d => !d.wk).map(d => (
                   <DayRow key={d.key} day={d} bookings={bookings} selected={selected} onPick={pickSlot}/>
                 ))}

@@ -57,7 +57,6 @@ const getBookings = async (req, res) => {
 };
 
 const WEEKDAY_SET = new Set(['mon', 'tue', 'wed', 'thu', 'fri']);
-const BLOCKED_STARTS = new Set(['18:00', '19:00', '20:00']);
 
 const createBooking = async (req, res) => {
   try {
@@ -71,10 +70,6 @@ const createBooking = async (req, res) => {
     for (const s of slotList) {
       if (!s.slotId || !s.day || !s.start || !s.end) {
         return res.status(400).json({ message: 'Invalid slot data' });
-      }
-      // Blocked: 18:00–21:00 on weekdays
-      if (!s.night && WEEKDAY_SET.has(s.day) && BLOCKED_STARTS.has(s.start)) {
-        return res.status(400).json({ message: `ช่วงเวลา ${s.start}–${s.end} วันธรรมดาไม่เปิดให้จอง (18:00–21:00)` });
       }
     }
 
