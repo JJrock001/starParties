@@ -83,14 +83,86 @@ function LoginScreen({ onLogin }: { onLogin: (t: string) => void }) {
   );
 }
 
+// ─── Timetable helpers ───────────────────────────────────────
+
+const WDAY_KEYS  = ["mon","tue","wed","thu","fri"];
+const WEND_KEYS  = ["sat","sun"];
+
+const WDAY_SLOTS = ["17:00","18:00","19:00","20:00","21:00","22:00",
+                    "23:00","00:00","01:00","02:00","03:00","04:00","05:00"];
+const WEND_SLOTS = ["08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00",
+                    "16:00","17:00","18:00","19:00","20:00","21:00","22:00","23:00",
+                    "00:00","01:00","02:00","03:00","04:00","05:00"];
+
+const WDAY_NIGHT = new Set(["23:00","00:00","01:00","02:00","03:00","04:00","05:00"]);
+const WEND_NIGHT = new Set(["00:00","01:00","02:00","03:00","04:00","05:00"]);
+
+const TT_COLORS = ["#E04E38","#E8734A","#E8A030","#C8B820","#5AAA60",
+                   "#3AACAC","#4690D5","#7868C8","#C050A0","#D4785A"];
+function ttBandColor(band: string) {
+  let h = 0;
+  for (let i = 0; i < band.length; i++) h = (h * 31 + band.charCodeAt(i)) & 0xffff;
+  return TT_COLORS[h % TT_COLORS.length];
+}
+
+type SlotMap = Record<string, Record<string, AdminBooking>>;
+
+function TimetableGrid({ days, slots, nightSet, slotMap, onEdit, onDel }: {
+  days: string[];
+  slots: string[];
+  nightSet: Set<string>;
+  slotMap: SlotMap;
+  onEdit: (b: AdminBooking) => void;
+  onDel:  (id: string) => void;
+}) {
+  return (
+    <div className="tt-grid" style={{ gridTemplateColumns: `54px repeat(${days.length}, 1fr)` }}>
+      {/* header row */}
+      <div className="tt-corner">TIME</div>
+      {days.map(d => (
+        <div key={d} className="tt-day-head">
+          <span className="tt-den">{DAY_EN[d]}</span>
+          <span className="tt-dth">{DAY_TH[d]}</span>
+        </div>
+      ))}
+      {/* time rows */}
+      {slots.map(time => (
+        <>
+          <div key={time + "-t"} className={"tt-time" + (nightSet.has(time) ? " night" : "")}>
+            {time}
+          </div>
+          {days.map(day => {
+            const bk = slotMap[day]?.[time];
+            return (
+              <div key={day + time} className={"tt-cell" + (nightSet.has(time) ? " night" : "") + (bk ? " booked" : "")}>
+                {bk && (
+                  <div className="tt-bk" style={{ background: ttBandColor(bk.band) }}>
+                    <div className="tt-bk-band">{bk.band}</div>
+                    <div className="tt-bk-members">
+                      {bk.members.map(m => m.nickname || m.name).join(" · ")}
+                    </div>
+                    <div className="tt-bk-acts">
+                      <button title="แก้ไขชื่อวง" onClick={() => onEdit(bk)}>✎</button>
+                      <button title="ลบการจอง"    onClick={() => onDel(bk._id)}>×</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </>
+      ))}
+    </div>
+  );
+}
+
 // ─── Reservations Tab ────────────────────────────────────────
 
 function ReservationsTab({ token }: { token: string }) {
-  const [weeks, setWeeks]     = useState<string[]>([]);
-  const [weekId, setWeekId]   = useState("");
+  const [weeks, setWeeks]       = useState<string[]>([]);
+  const [weekId, setWeekId]     = useState("");
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
-  const [editId, setEditId]   = useState<string | null>(null);
-  const [editBand, setEditBand] = useState("");
+  const [editing, setEditing]   = useState<{ id: string; band: string } | null>(null);
 
   const loadWeeks = useCallback(async () => {
     const res = await api(token, "/weeks");
@@ -115,14 +187,26 @@ function ReservationsTab({ token }: { token: string }) {
     loadBookings();
   }
 
-  async function saveEdit(id: string) {
-    await api(token, `/bookings/${id}`, { method: "PATCH", body: JSON.stringify({ band: editBand }) });
-    setEditId(null);
+  async function saveEdit() {
+    if (!editing) return;
+    await api(token, `/bookings/${editing.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ band: editing.band }),
+    });
+    setEditing(null);
     loadBookings();
   }
 
+  // build day → start → booking map
+  const slotMap: SlotMap = {};
+  bookings.forEach(b => {
+    if (!slotMap[b.day]) slotMap[b.day] = {};
+    slotMap[b.day][b.start] = b;
+  });
+
   return (
     <div className="adm-section">
+      {/* toolbar */}
       <div className="adm-toolbar">
         <label className="adm-tlabel">สัปดาห์</label>
         <select className="adm-select" value={weekId} onChange={e => setWeekId(e.target.value)}>
@@ -131,71 +215,48 @@ function ReservationsTab({ token }: { token: string }) {
         <span className="adm-count">{bookings.length} การจอง</span>
       </div>
 
-      {bookings.length === 0 ? (
-        <div className="adm-empty">ไม่มีการจองในสัปดาห์นี้</div>
-      ) : (
-        <div className="adm-table-wrap">
-          <table className="adm-table">
-            <thead>
-              <tr>
-                <th>วัน</th>
-                <th>เวลา</th>
-                <th>ประเภท</th>
-                <th>ชื่อวง</th>
-                <th>สมาชิก</th>
-                <th>จองเมื่อ</th>
-                <th>จัดการ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bookings.map(b => (
-                <tr key={b._id} className={editId === b._id ? "adm-tr-edit" : ""}>
-                  <td>
-                    <span className="adm-day-en">{DAY_EN[b.day]}</span>
-                    <span className="adm-day-th">{DAY_TH[b.day]}</span>
-                  </td>
-                  <td className="adm-mono">{b.start}–{b.end}</td>
-                  <td>
-                    {b.night
-                      ? <span className="adm-pill night">NIGHT · FREE</span>
-                      : <span className="adm-pill day">DAY</span>}
-                  </td>
-                  <td>
-                    {editId === b._id
-                      ? <input className="adm-inline-inp" value={editBand} onChange={e => setEditBand(e.target.value)}/>
-                      : <span className="adm-band">{b.band}</span>}
-                  </td>
-                  <td>
-                    <div className="adm-chips">
-                      {b.members.map(m => (
-                        <span className="adm-chip" key={m.sid} title={`${m.name} · ${m.phone}`}>
-                          {m.nickname || m.name}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="adm-mono adm-small">{new Date(b.createdAt).toLocaleDateString("th-TH")}</td>
-                  <td>
-                    <div className="adm-acts">
-                      {editId === b._id ? (
-                        <>
-                          <button className="adm-btn save" onClick={() => saveEdit(b._id)}>บันทึก</button>
-                          <button className="adm-btn cancel" onClick={() => setEditId(null)}>ยกเลิก</button>
-                        </>
-                      ) : (
-                        <>
-                          <button className="adm-btn edit" onClick={() => { setEditId(b._id); setEditBand(b.band); }}>แก้ไข</button>
-                          <button className="adm-btn del" onClick={() => del(b._id)}>ลบ</button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* inline edit bar */}
+      {editing && (
+        <div className="tt-edit-bar">
+          <span>แก้ไขชื่อวง:</span>
+          <input
+            className="tt-edit-inp"
+            value={editing.band}
+            onChange={e => setEditing(v => v ? { ...v, band: e.target.value } : v)}
+            autoFocus
+          />
+          <button className="adm-btn save"   onClick={saveEdit}>บันทึก</button>
+          <button className="adm-btn cancel" onClick={() => setEditing(null)}>ยกเลิก</button>
         </div>
       )}
+
+      {/* weekday timetable */}
+      <div className="tt-section-label">
+        WEEKDAYS · จันทร์–ศุกร์
+        <span>17:00–06:00 · Night FREE</span>
+      </div>
+      <div className="tt-wrap">
+        <TimetableGrid
+          days={WDAY_KEYS} slots={WDAY_SLOTS} nightSet={WDAY_NIGHT}
+          slotMap={slotMap}
+          onEdit={b => setEditing({ id: b._id, band: b.band })}
+          onDel={del}
+        />
+      </div>
+
+      {/* weekend timetable */}
+      <div className="tt-section-label">
+        WEEKENDS · เสาร์–อาทิตย์
+        <span>08:00–06:00 · Night FREE</span>
+      </div>
+      <div className="tt-wrap">
+        <TimetableGrid
+          days={WEND_KEYS} slots={WEND_SLOTS} nightSet={WEND_NIGHT}
+          slotMap={slotMap}
+          onEdit={b => setEditing({ id: b._id, band: b.band })}
+          onDel={del}
+        />
+      </div>
     </div>
   );
 }

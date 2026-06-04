@@ -746,6 +746,91 @@ button { font-family: inherit; }
   display: flex; align-items: center; gap: 8px;
   font-family: var(--font-th); font-weight: 700; font-size: 14px; cursor: pointer;
 }
+/* ── Timetable ─────────────────────────────────────────────── */
+.tt-section-label {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  font-family: var(--font-en); font-weight: 700; font-size: 13px; letter-spacing: 0.05em;
+  text-transform: uppercase; padding: 14px 0 6px;
+  border-top: var(--bold-rule) solid #000; margin-top: 20px;
+}
+.tt-section-label span { font-family: var(--font-th); font-weight: 600; font-size: 12px; letter-spacing: 0; text-transform: none; color: #888; }
+.tt-wrap { overflow-x: auto; margin-bottom: 8px; border: var(--rule) solid #000; }
+.tt-grid { display: grid; width: 100%; }
+
+/* header */
+.tt-corner {
+  background: #111; color: #aaa;
+  font-family: var(--font-en); font-weight: 700; font-size: 9px; letter-spacing: 0.08em;
+  display: flex; align-items: center; justify-content: center;
+  border-right: var(--rule) solid #333; border-bottom: var(--rule) solid #333;
+}
+.tt-day-head {
+  background: #111; color: #fff; text-align: center;
+  padding: 8px 4px; border-right: 1px solid #333; border-bottom: var(--rule) solid #333;
+  display: flex; flex-direction: column; gap: 2px; align-items: center;
+}
+.tt-den { font-family: var(--font-en); font-weight: 700; font-size: 13px; }
+.tt-dth { font-family: var(--font-th); font-size: 10px; color: #FFDE25; }
+
+/* time label */
+.tt-time {
+  background: #f5f5f0; text-align: center; min-height: 52px;
+  font-family: var(--font-en); font-weight: 700; font-size: 11px; letter-spacing: -0.01em;
+  display: flex; align-items: center; justify-content: center;
+  border-right: var(--rule) solid #000; border-bottom: 1px solid #e0e0e0;
+}
+.tt-time.night { background: #eaeaf4; color: #666; }
+
+/* slot cell */
+.tt-cell {
+  min-height: 52px; background: #fff;
+  border-right: 1px solid #e8e8e8; border-bottom: 1px solid #e8e8e8;
+  position: relative; overflow: hidden;
+}
+.tt-cell.night    { background: #f4f4f9; }
+.tt-cell.booked   { background: transparent; }
+
+/* booking card inside cell */
+.tt-bk {
+  position: absolute; inset: 2px; border-radius: 0;
+  padding: 4px 6px 4px 6px; display: flex; flex-direction: column; gap: 2px;
+  overflow: hidden; border: var(--rule) solid rgba(0,0,0,0.25);
+}
+.tt-bk-band {
+  font-family: var(--font-en); font-weight: 700; font-size: 11px;
+  letter-spacing: -0.01em; text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  line-height: 1.2;
+}
+.tt-bk-members {
+  font-family: var(--font-th); font-weight: 600; font-size: 10px; color: rgba(0,0,0,0.75);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;
+}
+.tt-bk-acts {
+  display: none; position: absolute; top: 2px; right: 2px; gap: 2px;
+}
+.tt-bk:hover .tt-bk-acts { display: flex; }
+.tt-bk-acts button {
+  width: 20px; height: 20px; padding: 0;
+  border: 1px solid rgba(0,0,0,0.5); background: rgba(0,0,0,0.7); color: #fff;
+  font-size: 13px; font-weight: 700; cursor: pointer; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.tt-bk-acts button:hover { background: #000; }
+.tt-bk-acts button:last-child:hover { background: #c00; }
+
+/* edit bar */
+.tt-edit-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 12px 16px; background: var(--yellow); border: var(--bold-rule) solid #000;
+  margin-bottom: 16px; font-family: var(--font-en); font-weight: 700; font-size: 13px;
+}
+.tt-edit-inp {
+  font-family: var(--font-mix); font-size: 14px; padding: 7px 12px;
+  border: var(--rule) solid #000; background: #fff; outline: none; flex: 1; min-width: 180px;
+}
+.tt-edit-inp:focus { background: #fff; }
+
 .adm-ev-badge {
   width: 36px; height: 36px; border-radius: 999px; border: var(--rule) solid #000;
   display: flex; align-items: center; justify-content: center;
