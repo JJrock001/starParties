@@ -1,7 +1,7 @@
 const router    = require('express').Router();
 const adminAuth = require('../middleware/adminAuth');
 const {
-  login, getWeeks, getBookings, deleteBooking, patchBooking,
+  login, getWeeks, getBookings, createAdminBooking, deleteBooking, patchBooking,
   getMembers, updateMember, deleteMember,
   getActivities, createActivity, updateActivity, deleteActivity,
 } = require('../controllers/adminController');
@@ -10,6 +10,7 @@ router.post('/login', login);
 
 router.get('/weeks',           adminAuth, getWeeks);
 router.get('/bookings',        adminAuth, getBookings);
+router.post('/bookings',       adminAuth, createAdminBooking);
 router.delete('/bookings/:id', adminAuth, deleteBooking);
 router.patch('/bookings/:id',  adminAuth, patchBooking);
 

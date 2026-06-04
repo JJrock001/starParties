@@ -49,10 +49,50 @@ const deleteBooking = async (req, res) => {
   }
 };
 
+const createAdminBooking = async (req, res) => {
+  try {
+    const { slotId, weekId, day, start, end, night, band, members: memberSids } = req.body;
+    if (!slotId || !weekId || !day || !start || !end) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+    const existing = await Booking.findOne({ slotId, weekId });
+    if (existing) return res.status(409).json({ message: 'สล็อตนี้ถูกจองแล้ว' });
+
+    const ids = (memberSids || []).map(s => String(s).trim()).filter(Boolean);
+    const memberObjs = [];
+    for (const id of ids) {
+      const member = await Member.findOne({ sid: id });
+      if (!member) return res.status(400).json({ message: `ไม่พบรหัสนิสิต ${id}` });
+      memberObjs.push({ sid: id, name: member.name, nickname: member.nickname, phone: member.phone });
+    }
+    const booking = await Booking.create({
+      slotId, weekId, day, start, end, night: !!night,
+      band: (band || '').trim() || 'ซ้อมส่วนตัว',
+      members: memberObjs,
+    });
+    return res.status(201).json({ booking });
+  } catch (e) {
+    if (e.code === 11000) return res.status(409).json({ message: 'สล็อตนี้ถูกจองแล้ว' });
+    return res.status(500).json({ message: e.message });
+  }
+};
+
 const patchBooking = async (req, res) => {
   try {
-    const { band } = req.body;
-    const booking = await Booking.findByIdAndUpdate(req.params.id, { band }, { new: true });
+    const { band, members: memberSids } = req.body;
+    const update = {};
+    if (band !== undefined) update.band = band;
+    if (Array.isArray(memberSids)) {
+      const ids = memberSids.map(s => String(s).trim()).filter(Boolean);
+      const memberObjs = [];
+      for (const id of ids) {
+        const member = await Member.findOne({ sid: id });
+        if (!member) return res.status(400).json({ message: `ไม่พบรหัสนิสิต ${id}` });
+        memberObjs.push({ sid: id, name: member.name, nickname: member.nickname, phone: member.phone });
+      }
+      update.members = memberObjs;
+    }
+    const booking = await Booking.findByIdAndUpdate(req.params.id, update, { new: true });
     return res.json({ booking });
   } catch (e) {
     return res.status(500).json({ message: e.message });
@@ -137,7 +177,7 @@ const deleteActivity = async (req, res) => {
 
 module.exports = {
   login,
-  getWeeks, getBookings, deleteBooking, patchBooking,
+  getWeeks, getBookings, createAdminBooking, deleteBooking, patchBooking,
   getMembers, updateMember, deleteMember,
   getActivities, createActivity, updateActivity, deleteActivity,
 };
