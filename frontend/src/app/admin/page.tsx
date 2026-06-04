@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -127,8 +127,8 @@ function TimetableGrid({ days, slots, nightSet, slotMap, onEdit, onDel }: {
       ))}
       {/* time rows */}
       {slots.map(time => (
-        <>
-          <div key={time + "-t"} className={"tt-time" + (nightSet.has(time) ? " night" : "")}>
+        <React.Fragment key={time}>
+          <div className={"tt-time" + (nightSet.has(time) ? " night" : "")}>
             {time}
           </div>
           {days.map(day => {
@@ -150,7 +150,7 @@ function TimetableGrid({ days, slots, nightSet, slotMap, onEdit, onDel }: {
               </div>
             );
           })}
-        </>
+        </React.Fragment>
       ))}
     </div>
   );
