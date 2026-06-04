@@ -101,7 +101,7 @@ const createBooking = async (req, res) => {
       if (!member) {
         return res.status(400).json({ message: `ไม่พบรหัสนิสิต ${id} ในระบบ กรุณาสมัครสมาชิกชมรมก่อน!` });
       }
-      memberObjs.push({ sid: id, name: member.name });
+      memberObjs.push({ sid: id, name: member.name, nickname: member.nickname, phone: member.phone });
     }
 
     // Quota check (daytime slots only, split by weekday/weekend)

@@ -42,12 +42,13 @@ interface BookingEntry {
   end: string;
   night: boolean;
   band: string;
-  members: { sid: string; name: string }[];
+  members: { sid: string; name: string; nickname: string; phone: string }[];
 }
 type BookingsMap = Record<string, BookingEntry>;
 
 interface MemberInfo {
   name: string;
+  nickname: string;
   sid: string;
   faculty: string;
   phone: string;
@@ -324,10 +325,10 @@ function Footer({ onOpen }: { onOpen:(m:ModalType)=>void }) {
         <div className="foot-cell">
           <span className="k">Find Us</span>
           <div className="foot-soc">
-            <a><Dot cls="dot"/>Instagram · @starparty.tu</a>
-            <a><Dot cls="dot"/>Facebook · STARPARTY</a>
-            <a><Dot cls="dot"/>LINE OA · @starparty</a>
-            <a><Dot cls="dot"/>YouTube · STARPARTY LIVE</a>
+            <a href="https://www.instagram.com/starparty.tu" target="_blank" rel="noopener noreferrer"><Dot cls="dot"/>Instagram · @starparty.tu</a>
+            <a href="https://www.facebook.com/STARPARTY" target="_blank" rel="noopener noreferrer"><Dot cls="dot"/>Facebook · STARPARTY</a>
+            <a href="https://line.me/R/ti/p/@starparty" target="_blank" rel="noopener noreferrer"><Dot cls="dot"/>LINE OA · @starparty</a>
+            <a href="https://www.youtube.com/@STARPARTYLIVE" target="_blank" rel="noopener noreferrer"><Dot cls="dot"/>YouTube · STARPARTY LIVE</a>
           </div>
         </div>
         <div className="foot-cell">
@@ -385,8 +386,8 @@ function CloseBtn({ onClick }: { onClick:()=>void }) {
 
 function RegisterModal({ onClose }: { onClose:()=>void }) {
   const [done, setDone] = useState(false);
-  const [saved, setSaved] = useState<{ name:string; sid:string; faculty:string; phone:string; no:number }|null>(null);
-  const [f, setF] = useState({ name:"", sid:"", faculty:"", phone:"" });
+  const [saved, setSaved] = useState<{ name:string; nickname:string; sid:string; faculty:string; phone:string; no:number }|null>(null);
+  const [f, setF] = useState({ name:"", nickname:"", sid:"", faculty:"", phone:"" });
   const [errors, setErrors] = useState<Partial<Record<string,string>>>({});
   const [dupe, setDupe] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -401,10 +402,11 @@ function RegisterModal({ onClose }: { onClose:()=>void }) {
 
   function validate() {
     const er: Record<string,string> = {};
-    if (!f.name.trim())               er.name    = "กรุณากรอกชื่อ–นามสกุล";
-    if (!/^\d{10}$/.test(f.sid))      er.sid     = "รหัสนิสิตต้องเป็นตัวเลข 10 หลัก";
-    if (!f.faculty.trim())            er.faculty = "กรุณากรอกคณะ/ภาควิชา";
-    if (!/^\d{9,10}$/.test(f.phone))  er.phone   = "เบอร์โทรศัพท์ไม่ถูกต้อง (9–10 หลัก)";
+    if (!f.name.trim())               er.name     = "กรุณากรอกชื่อ–นามสกุล";
+    if (!f.nickname.trim())           er.nickname = "กรุณากรอกชื่อเล่น";
+    if (!/^\d{10}$/.test(f.sid))      er.sid      = "รหัสนิสิตต้องเป็นตัวเลข 10 หลัก";
+    if (!f.faculty.trim())            er.faculty  = "กรุณากรอกคณะ/ภาควิชา";
+    if (!/^\d{9,10}$/.test(f.phone))  er.phone    = "เบอร์โทรศัพท์ไม่ถูกต้อง (9–10 หลัก)";
     return er;
   }
 
@@ -419,7 +421,7 @@ function RegisterModal({ onClose }: { onClose:()=>void }) {
       const res = await fetch("/api/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: f.name.trim(), sid: f.sid, faculty: f.faculty.trim(), phone: f.phone }),
+        body: JSON.stringify({ name: f.name.trim(), nickname: f.nickname.trim(), sid: f.sid, faculty: f.faculty.trim(), phone: f.phone }),
       });
       const data = await res.json();
       if (res.status === 409) { setDupe(true); return; }
@@ -449,6 +451,7 @@ function RegisterModal({ onClose }: { onClose:()=>void }) {
             <div className="th"><b>ลงทะเบียนสำเร็จ</b> — ยินดีต้อนรับ <b>{saved.name}</b> สู่ STARPARTY เก็บรหัสนิสิตไว้ใช้เช็คอินและจองห้องซ้อมได้เลย</div>
             <div className="recap">
               <div><b>Name</b><span>{saved.name}</span></div>
+              <div><b>Nickname</b><span>{saved.nickname}</span></div>
               <div><b>Student ID</b><span>{saved.sid}</span></div>
               <div><b>Faculty</b><span>{saved.faculty}</span></div>
               <div><b>Contact</b><span>{saved.phone}</span></div>
@@ -468,6 +471,11 @@ function RegisterModal({ onClose }: { onClose:()=>void }) {
               <label>Full Name <span className="th">ชื่อ–นามสกุล</span></label>
               <input value={f.name} onChange={set("name")} placeholder="เช่น สมหญิง ใจดี"/>
               {errors.name && <span className="field-msg">{errors.name}</span>}
+            </div>
+            <div className={fe("nickname")}>
+              <label>Nickname <span className="th">ชื่อเล่น</span></label>
+              <input value={f.nickname} onChange={set("nickname")} placeholder="เช่น มิ้ว, แบม, ตั้ม"/>
+              {errors.nickname && <span className="field-msg">{errors.nickname}</span>}
             </div>
             <div className={fe("sid")}>
               <label>Student ID <span className="th">รหัสนิสิต</span></label>
@@ -517,13 +525,25 @@ function SlotChip({ slot, bookings, selected, onPick }: {
   if (slot.night) cls += " night";
   if (booked) cls += " booked";
   else if (isSel) cls += " sel";
-  const title = booked ? `จองแล้ว · ${booked.band}` : "ว่าง · กดเพื่อเลือก";
   return (
-    <button type="button" className={cls} title={title}
-            onClick={() => onPick(slot)} disabled={!!booked}>
-      <span className="chip-time">{slotLabel(slot)}</span>
-      <span className="chip-band">{booked ? booked.band : (slot.night ? "FREE" : "ว่าง")}</span>
-    </button>
+    <div className="chip-wrap">
+      <button type="button" className={cls}
+              onClick={() => onPick(slot)} disabled={!!booked}>
+        <span className="chip-time">{slotLabel(slot)}</span>
+        <span className="chip-band">{booked ? booked.band : (slot.night ? "FREE" : "ว่าง")}</span>
+      </button>
+      {booked && (
+        <div className="chip-tip">
+          <div className="ct-band">{booked.band}</div>
+          {booked.members.map(m => (
+            <div className="ct-row" key={m.sid}>
+              <span className="ct-nick">{m.nickname || m.name}</span>
+              <span className="ct-phone">{m.phone}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

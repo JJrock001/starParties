@@ -9,7 +9,7 @@ const bookingSchema = new mongoose.Schema(
     end: { type: String, required: true },
     night: { type: Boolean, default: false },
     band: { type: String, required: true, default: 'ซ้อมส่วนตัว' },
-    members: [{ sid: String, name: String }],
+    members: [{ sid: String, name: String, nickname: String, phone: String }],
   },
   { timestamps: true }
 );

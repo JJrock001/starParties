@@ -2,9 +2,9 @@ const Member = require('../models/Member');
 
 const registerMember = async (req, res) => {
   try {
-    const { name, sid, faculty, phone } = req.body;
+    const { name, nickname, sid, faculty, phone } = req.body;
 
-    if (!name || !sid || !faculty || !phone) {
+    if (!name || !nickname || !sid || !faculty || !phone) {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
@@ -19,6 +19,7 @@ const registerMember = async (req, res) => {
 
     const member = await Member.create({
       name: String(name).trim(),
+      nickname: String(nickname).trim(),
       sid: String(sid).trim(),
       faculty: String(faculty).trim(),
       phone: String(phone).trim(),
@@ -28,7 +29,7 @@ const registerMember = async (req, res) => {
 
     return res.status(201).json({
       message: 'Registration successful',
-      member: { name: member.name, sid: member.sid, faculty: member.faculty, phone: member.phone },
+      member: { name: member.name, nickname: member.nickname, sid: member.sid, faculty: member.faculty, phone: member.phone },
       memberNo: count,
     });
   } catch (error) {
@@ -49,7 +50,7 @@ const getMember = async (req, res) => {
     }
 
     return res.status(200).json({
-      member: { name: member.name, sid: member.sid, faculty: member.faculty, phone: member.phone },
+      member: { name: member.name, nickname: member.nickname, sid: member.sid, faculty: member.faculty, phone: member.phone },
     });
   } catch (error) {
     return res.status(500).json({ message: 'Lookup failed', error: error.message });
