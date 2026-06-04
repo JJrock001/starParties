@@ -289,7 +289,9 @@ function TimetableGrid({ days, slots, nightSet, slotMap, onSelectSlot, onEdit }:
                 {bk ? (
                   <div className="tt-bk" style={{ background: ttBandColor(bk.band) }}>
                     <div className="tt-bk-band">{bk.band}</div>
-                    <div className="tt-bk-members">{bk.members.map(m => m.nickname||m.name).join(" · ")}</div>
+                    <div className="tt-bk-members">
+                      {bk.members.map(m => `${m.nickname||m.name} ${m.phone}`).join(" · ")}
+                    </div>
                     <div className="tt-bk-acts">
                       <button title="แก้ไข" onClick={e => { e.stopPropagation(); onEdit(bk); }}>✎</button>
                     </div>
