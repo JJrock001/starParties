@@ -565,3 +565,156 @@ button { font-family: inherit; }
   .hero { padding: 32px 18px 8px; }
   .hero-actions { padding: 28px 18px 36px; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   ADMIN DASHBOARD
+   ═══════════════════════════════════════════════════════════ */
+
+/* Login */
+.adm-login-wrap {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: var(--concrete);
+}
+.adm-login {
+  width: 100%; max-width: 380px;
+  border: var(--bold-rule) solid #000; background: var(--paper);
+}
+.adm-login-head {
+  background: #000; color: var(--yellow); padding: 16px 22px;
+  font-family: var(--font-en); font-weight: 700; font-size: 18px; letter-spacing: 0.04em;
+}
+.adm-login form { padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+.adm-err {
+  background: var(--red); color: #000; border: var(--rule) solid #000;
+  padding: 10px 14px; font-family: var(--font-th); font-weight: 700; font-size: 14px;
+}
+.adm-field { display: flex; flex-direction: column; gap: 6px; }
+.adm-field label {
+  font-family: var(--font-en); font-weight: 700; font-size: 11px;
+  letter-spacing: 0.06em; color: #666;
+}
+.adm-field input {
+  font-family: var(--font-mix); font-size: 16px; padding: 11px 12px;
+  border: var(--rule) solid #000; outline: none; background: #fff;
+}
+.adm-field input:focus { background: var(--yellow); }
+.adm-submit {
+  padding: 14px; background: #000; color: #fff; border: none; cursor: pointer;
+  font-family: var(--font-en); font-weight: 700; font-size: 15px; letter-spacing: 0.06em;
+  transition: background 0.1s linear;
+}
+.adm-submit:hover { background: var(--red); color: #000; }
+.adm-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Shell */
+.adm { min-height: 100vh; background: var(--concrete); font-family: var(--font-mix); }
+.adm-header {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #000; color: #fff; padding: 14px 28px;
+  border-bottom: var(--bold-rule) solid #000;
+  position: sticky; top: 0; z-index: 40;
+}
+.adm-title {
+  font-family: var(--font-en); font-weight: 700; font-size: 20px;
+  letter-spacing: -0.02em; display: flex; align-items: center; gap: 12px;
+}
+.adm-badge-pill {
+  font-size: 11px; letter-spacing: 0.08em; padding: 4px 10px;
+  background: var(--red); color: #000; font-weight: 700;
+}
+.adm-logout {
+  font-family: var(--font-en); font-weight: 700; font-size: 12px; letter-spacing: 0.06em;
+  padding: 8px 16px; border: var(--rule) solid #fff; background: #000; color: #fff; cursor: pointer;
+  transition: background 0.1s linear, color 0.1s linear;
+}
+.adm-logout:hover { background: #fff; color: #000; }
+
+/* Tabs */
+.adm-tabbar { display: flex; border-bottom: var(--bold-rule) solid #000; background: var(--paper); }
+.adm-tab {
+  padding: 14px 28px; border: none; border-right: var(--rule) solid #000;
+  background: var(--paper); color: #000; cursor: pointer;
+  font-family: var(--font-en); font-weight: 700; font-size: 13px; letter-spacing: 0.04em;
+  transition: background 0.1s linear;
+}
+.adm-tab:hover { background: var(--concrete); }
+.adm-tab.active { background: #000; color: var(--yellow); }
+
+/* Section */
+.adm-section { padding: 20px 24px; }
+.adm-toolbar {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.adm-tlabel {
+  font-family: var(--font-en); font-weight: 700; font-size: 12px; letter-spacing: 0.04em; color: #666;
+}
+.adm-select {
+  font-family: var(--font-en); font-weight: 700; font-size: 14px;
+  padding: 8px 12px; border: var(--rule) solid #000; background: #fff; outline: none; cursor: pointer;
+}
+.adm-search {
+  font-family: var(--font-mix); font-size: 14px; padding: 8px 14px;
+  border: var(--rule) solid #000; background: #fff; outline: none; width: 280px;
+}
+.adm-search:focus { background: var(--yellow); }
+.adm-count {
+  font-family: var(--font-en); font-weight: 700; font-size: 12px; color: #888; letter-spacing: 0.03em;
+}
+.adm-empty {
+  font-family: var(--font-th); font-size: 16px; color: #888; padding: 40px; text-align: center;
+  border: var(--rule) dashed #ccc; background: #fff;
+}
+
+/* Table */
+.adm-table-wrap { overflow-x: auto; }
+.adm-table {
+  width: 100%; border-collapse: collapse;
+  border: var(--rule) solid #000; background: var(--paper);
+  font-size: 14px;
+}
+.adm-table th {
+  background: #000; color: #fff; padding: 10px 14px; text-align: left;
+  font-family: var(--font-en); font-weight: 700; font-size: 11px; letter-spacing: 0.05em;
+  text-transform: uppercase; white-space: nowrap;
+}
+.adm-table td {
+  padding: 10px 14px; border-bottom: var(--hair) solid #ddd; vertical-align: middle;
+}
+.adm-table tr:last-child td { border-bottom: 0; }
+.adm-table tr:hover td { background: #f9f6ee; }
+.adm-tr-edit td { background: #fffde0 !important; }
+.adm-day-en { font-family: var(--font-en); font-weight: 700; font-size: 13px; display: block; }
+.adm-day-th { font-family: var(--font-th); font-size: 12px; color: #888; display: block; }
+.adm-mono { font-family: var(--font-en); font-weight: 700; }
+.adm-small { font-size: 12px; color: #999; }
+.adm-band { font-family: var(--font-th); font-weight: 700; }
+.adm-pill {
+  font-family: var(--font-en); font-weight: 700; font-size: 10px; letter-spacing: 0.05em;
+  padding: 3px 8px; border: var(--rule) solid #000; white-space: nowrap;
+}
+.adm-pill.day   { background: var(--yellow); }
+.adm-pill.night { background: #dde; }
+.adm-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.adm-chip {
+  font-family: var(--font-th); font-weight: 700; font-size: 12px;
+  padding: 2px 8px; background: var(--blue); border: var(--rule) solid #000; white-space: nowrap;
+  cursor: default;
+}
+.adm-inline-inp {
+  font-family: var(--font-mix); font-size: 14px; padding: 6px 10px;
+  border: var(--rule) solid #000; background: var(--yellow); outline: none; width: 100%; min-width: 120px;
+}
+
+/* Action buttons */
+.adm-acts { display: flex; gap: 6px; }
+.adm-btn {
+  font-family: var(--font-en); font-weight: 700; font-size: 11px; letter-spacing: 0.04em;
+  padding: 6px 12px; border: var(--rule) solid #000; cursor: pointer;
+  transition: background 0.1s linear, color 0.1s linear; white-space: nowrap;
+}
+.adm-btn.edit   { background: #fff;           color: #000; }
+.adm-btn.del    { background: var(--red);     color: #000; }
+.adm-btn.save   { background: #000;           color: var(--yellow); }
+.adm-btn.cancel { background: var(--concrete); color: #000; }
+.adm-btn:hover  { background: #000; color: #fff; }
+.adm-btn.del:hover { background: #900; color: #fff; }
