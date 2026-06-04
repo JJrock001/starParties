@@ -105,11 +105,11 @@ const getActivities = async (req, res) => {
 
 const createActivity = async (req, res) => {
   try {
-    const { badge, color, date, name, nameTh, tag, tagLabel, imageUrl, imageFocus, description, active, order } = req.body;
+    const { badge, color, date, name, nameTh, tag, tagLabel, imageUrl, description, active, order } = req.body;
     if (!badge || !date || !name || !tagLabel) {
       return res.status(400).json({ message: 'badge, date, name, tagLabel are required' });
     }
-    const activity = await Activity.create({ badge, color, date, name, nameTh, tag, tagLabel, imageUrl, imageFocus, description, active, order });
+    const activity = await Activity.create({ badge, color, date, name, nameTh, tag, tagLabel, imageUrl, description, active, order });
     return res.status(201).json({ activity });
   } catch (e) {
     return res.status(500).json({ message: e.message });

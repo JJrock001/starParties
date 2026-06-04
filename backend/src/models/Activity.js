@@ -10,7 +10,6 @@ const activitySchema = new mongoose.Schema(
     tag:      { type: String, enum: ['jam','live','open','other'], default: 'jam' },
     tagLabel:    { type: String, required: true, trim: true },
     imageUrl:    { type: String, default: '', trim: true },
-    imageFocus:  { type: String, default: 'center', trim: true },
     description: { type: String, default: '', trim: true },
     active:      { type: Boolean, default: true },
     order:       { type: Number, default: 0 },

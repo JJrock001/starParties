@@ -376,7 +376,6 @@ interface AdminActivity {
   tag: 'jam'|'live'|'open'|'other';
   tagLabel: string;
   imageUrl: string;
-  imageFocus: string;
   description: string;
   active: boolean;
   order: number;
@@ -384,20 +383,8 @@ interface AdminActivity {
 
 const EMPTY_ACT: Omit<AdminActivity, '_id'> = {
   badge:"", color:"r", date:"", name:"", nameTh:"", tag:"jam", tagLabel:"JAM",
-  imageUrl:"", imageFocus:"center", description:"", active:true, order:0,
+  imageUrl:"", description:"", active:true, order:0,
 };
-
-const FOCUS_OPTIONS = [
-  { value:"top left",    label:"↖" },
-  { value:"top",         label:"↑" },
-  { value:"top right",   label:"↗" },
-  { value:"left",        label:"←" },
-  { value:"center",      label:"⊙" },
-  { value:"right",       label:"→" },
-  { value:"bottom left", label:"↙" },
-  { value:"bottom",      label:"↓" },
-  { value:"bottom right",label:"↘" },
-];
 
 const COLOR_LABELS = { r:"Red", y:"Yellow", b:"Blue", o:"Orange" };
 const TAG_LABELS   = { jam:"JAM", live:"LIVE", open:"OPEN MIC", other:"OTHER" };
@@ -485,34 +472,17 @@ function ActivitiesTab({ token }: { token: string }) {
             </div>
             {form.imageUrl && (
               <div className="adm-field adm-field-wide">
-                <label>PREVIEW &amp; CROP POSITION · ตัวอย่างรูปและจุดตัด</label>
+                <label>PREVIEW · ตัวอย่างรูป</label>
                 <div className="adm-img-preview">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={form.imageUrl}
                     alt="preview"
-                    style={{ objectPosition: form.imageFocus }}
                     onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
                     onLoad={e => { (e.target as HTMLImageElement).style.display = "block"; }}
                   />
                   <div className="adm-img-err">⚠ โหลดรูปไม่ได้ — ตรวจสอบ URL อีกครั้ง</div>
                 </div>
-                <div className="adm-focus-grid">
-                  {FOCUS_OPTIONS.map(o => (
-                    <button
-                      key={o.value}
-                      type="button"
-                      className={"adm-focus-btn" + (form.imageFocus === o.value ? " active" : "")}
-                      onClick={() => setForm(f => f ? { ...f, imageFocus: o.value } : f)}
-                      title={o.value}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-                <span style={{ fontSize:11, fontFamily:"var(--font-en)", color:"#888" }}>
-                  กดลูกศรเพื่อเลือกจุดที่ต้องการโชว์ · ปัจจุบัน: {form.imageFocus}
-                </span>
               </div>
             )}
             <div className="adm-field">
