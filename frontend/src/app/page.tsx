@@ -607,6 +607,9 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
   const flatSlots: Record<string, SlotDef> = {};
   DAYS.forEach(d => { const s = daySlots(d); [...s.day,...s.night].forEach(x => { flatSlots[x.id]=x; }); });
 
+  // Weekday daytime bookings are capped at 3 consecutive hours per session
+  const MAX_CONSECUTIVE_WEEKDAY = 3;
+
   function pickSlot(slot: SlotDef) {
     if (bookings[slot.id] || isBlockedSlot(slot)) return;
     setError(null);
@@ -624,6 +627,14 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
       } else {
         setSelected([slot.id]);
       }
+      return;
+    }
+
+    // Check weekday consecutive cap before extending
+    const isWeekday = WEEKDAY_KEYS.has(slot.day) && !slot.night;
+    const currentDaytimeCount = selected.filter(id => !flatSlots[id].night).length;
+    if (isWeekday && currentDaytimeCount >= MAX_CONSECUTIVE_WEEKDAY) {
+      setError(`วันธรรมดาจองได้สูงสุด ${MAX_CONSECUTIVE_WEEKDAY} ชั่วโมงต่อครั้ง`);
       return;
     }
 
@@ -749,7 +760,7 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
               })()}
               <SlotLegend/>
               <div className="grid-block">
-                <div className="grid-banner">WEEKDAYS · จันทร์–ศุกร์ <span>17:00+ · ปิด 18:00–21:00 · สูงสุด 3 ชม./สัปดาห์</span></div>
+                <div className="grid-banner">WEEKDAYS · จันทร์–ศุกร์ <span>17:00+ · ปิด 18:00–21:00 · สูงสุด 3 ชม./ครั้ง · 3 ชม./สัปดาห์</span></div>
                 {DAYS.filter(d => !d.wk).map(d => (
                   <DayRow key={d.key} day={d} bookings={bookings} selected={selected} onPick={pickSlot}/>
                 ))}

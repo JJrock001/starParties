@@ -78,6 +78,12 @@ const createBooking = async (req, res) => {
       }
     }
 
+    // Weekday: max 3 consecutive daytime hours per booking session
+    const weekdayDaytime = slotList.filter(s => !s.night && WEEKDAY_SET.has(s.day));
+    if (weekdayDaytime.length > 3) {
+      return res.status(400).json({ message: 'วันธรรมดาจองได้สูงสุด 3 ชั่วโมงต่อครั้ง' });
+    }
+
     const settings = await getOrCreateSettings();
     const { weekId, mode } = settings.value;
 
