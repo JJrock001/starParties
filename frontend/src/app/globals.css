@@ -865,6 +865,22 @@ button { font-family: inherit; }
   border-top: var(--rule) solid #000; background: #f9f9f9;
 }
 
+/* Date picker */
+.adm-date-pick {
+  font-family: var(--font-en); font-weight: 700; font-size: 14px;
+  padding: 9px 12px; border: var(--rule) solid #000; background: #fff;
+  outline: none; width: 100%; cursor: pointer;
+}
+.adm-date-pick:focus { background: var(--yellow); }
+.adm-date-preview {
+  display: flex; align-items: center; gap: 10px; margin-top: 6px;
+  padding: 8px 12px; background: #000; color: #fff;
+  font-family: var(--font-en); font-size: 13px;
+  min-height: 36px;
+}
+.adm-date-preview b { font-size: 15px; letter-spacing: 0.04em; color: var(--yellow); }
+.adm-date-hint { color: #888; font-style: italic; }
+
 /* Image preview */
 .adm-img-preview {
   width: 100%; border: var(--bold-rule) solid #000; background: #111;

@@ -497,6 +497,16 @@ const EMPTY_ACT: Omit<AdminActivity, '_id'> = {
   imageUrl:"", description:"", active:true, order:0,
 };
 
+const DAY_SHORT  = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+const MON_SHORT  = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+
+function formatActivityDate(iso: string): string {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return `${DAY_SHORT[date.getDay()]} ${d} ${MON_SHORT[m - 1]}`;
+}
+
 const COLOR_LABELS = { r:"Red", y:"Yellow", b:"Blue", o:"Orange" };
 const TAG_LABELS   = { jam:"JAM", live:"LIVE", open:"OPEN MIC", other:"OTHER" };
 const COLOR_HEX    = { r:"#E04E38", y:"#FFDE25", b:"#4690D5", o:"#DD643F" };
@@ -504,6 +514,7 @@ const COLOR_HEX    = { r:"#E04E38", y:"#FFDE25", b:"#4690D5", o:"#DD643F" };
 function ActivitiesTab({ token }: { token: string }) {
   const [activities, setActivities] = useState<AdminActivity[]>([]);
   const [form, setForm] = useState<(Omit<AdminActivity,"_id"> & { _id?: string }) | null>(null);
+  const [rawDate, setRawDate] = useState("");
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -562,8 +573,21 @@ function ActivitiesTab({ token }: { token: string }) {
               </select>
             </div>
             <div className="adm-field">
-              <label>DATE · วันที่แสดง</label>
-              <input value={form.date} onChange={set("date")} placeholder="SAT 14 JUN"/>
+              <label>DATE · เลือกวันที่</label>
+              <input
+                type="date"
+                className="adm-date-pick"
+                value={rawDate}
+                onChange={e => {
+                  setRawDate(e.target.value);
+                  setForm(f => f ? { ...f, date: formatActivityDate(e.target.value) } : f);
+                }}
+              />
+              <div className="adm-date-preview">
+                {form.date
+                  ? <><span>แสดงเป็น:</span><b>{form.date}</b></>
+                  : <span className="adm-date-hint">เลือกวันที่จากปฏิทินด้านบน</span>}
+              </div>
             </div>
             <div className="adm-field">
               <label>NAME · ชื่อกิจกรรม (EN)</label>
@@ -626,7 +650,7 @@ function ActivitiesTab({ token }: { token: string }) {
         </div>
       ) : (
         <div className="adm-toolbar">
-          <button className="adm-btn-new" onClick={() => setForm({ ...EMPTY_ACT })}>+ สร้างกิจกรรมใหม่</button>
+          <button className="adm-btn-new" onClick={() => { setRawDate(""); setForm({ ...EMPTY_ACT }); }}>+ สร้างกิจกรรมใหม่</button>
           <span className="adm-count">{activities.length} กิจกรรม</span>
         </div>
       )}
@@ -659,7 +683,7 @@ function ActivitiesTab({ token }: { token: string }) {
                 <td className="adm-mono adm-small">{a.order}</td>
                 <td>
                   <div className="adm-acts">
-                    <button className="adm-btn edit" onClick={() => setForm({ ...a })}>แก้ไข</button>
+                    <button className="adm-btn edit" onClick={() => { setRawDate(""); setForm({ ...a }); }}>แก้ไข</button>
                     <button className="adm-btn del"  onClick={() => del(a._id, a.name)}>ลบ</button>
                   </div>
                 </td>
