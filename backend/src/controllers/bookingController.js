@@ -56,24 +56,40 @@ const getBookings = async (req, res) => {
   }
 };
 
+const WEEKDAY_SET = new Set(['mon', 'tue', 'wed', 'thu', 'fri']);
+const BLOCKED_STARTS = new Set(['18:00', '19:00', '20:00']);
+
 const createBooking = async (req, res) => {
   try {
-    const { slotId, day, start, end, night, band, members: memberSids } = req.body;
+    const { slots: slotList, band, members: memberSids } = req.body;
 
-    if (!slotId || !day || !start || !end || !Array.isArray(memberSids) || memberSids.length === 0) {
+    if (!Array.isArray(slotList) || slotList.length === 0 || !Array.isArray(memberSids) || memberSids.length === 0) {
       return res.status(400).json({ message: 'Missing required booking fields' });
+    }
+
+    // Validate slot fields
+    for (const s of slotList) {
+      if (!s.slotId || !s.day || !s.start || !s.end) {
+        return res.status(400).json({ message: 'Invalid slot data' });
+      }
+      // Blocked: 18:00–21:00 on weekdays
+      if (!s.night && WEEKDAY_SET.has(s.day) && BLOCKED_STARTS.has(s.start)) {
+        return res.status(400).json({ message: `ช่วงเวลา ${s.start}–${s.end} วันธรรมดาไม่เปิดให้จอง (18:00–21:00)` });
+      }
     }
 
     const settings = await getOrCreateSettings();
     const { weekId, mode } = settings.value;
 
-    const existing = await Booking.findOne({ slotId, weekId });
-    if (existing) {
-      return res.status(409).json({ message: 'ขออภัย สล็อตเวลานี้เพิ่งโดนจองไปเมื่อครู่ กรุณาเลือกเวลาอื่น' });
+    // Check no slot is already booked
+    for (const s of slotList) {
+      const existing = await Booking.findOne({ slotId: s.slotId, weekId });
+      if (existing) {
+        return res.status(409).json({ message: `ขออภัย สล็อต ${s.start}–${s.end} เพิ่งโดนจองไปเมื่อครู่ กรุณาเลือกเวลาอื่น` });
+      }
     }
 
     const ids = memberSids.map(s => String(s).trim()).filter(Boolean);
-
     if (new Set(ids).size !== ids.length) {
       return res.status(400).json({ message: 'กรอกรหัสนิสิตซ้ำกันในวง กรุณาตรวจสอบใหม่' });
     }
@@ -87,33 +103,39 @@ const createBooking = async (req, res) => {
       memberObjs.push({ sid: id, name: member.name });
     }
 
-    const isNight = !!night;
-    const isWknd = WEEKEND_DAYS.has(day);
-    const quota = isWknd ? 6 : 3;
+    // Quota check (daytime slots only, split by weekday/weekend)
+    if (mode !== 'buffet') {
+      const newWkday = slotList.filter(s => !s.night && WEEKDAY_SET.has(s.day)).length;
+      const newWkend = slotList.filter(s => !s.night && WEEKEND_DAYS.has(s.day)).length;
 
-    if (!isNight && mode !== 'buffet') {
       for (const id of ids) {
-        const count = await quotaCount(id, day, weekId);
-        if (count >= quota) {
-          const m = memberObjs.find(mo => mo.sid === id);
-          const label = isWknd ? 'เสาร์-อาทิตย์ (สูงสุด 6 ชม./สัปดาห์)' : 'วันธรรมดา (สูงสุด 3 ชม./สัปดาห์)';
-          return res.status(400).json({
-            message: `สมาชิก ${m ? m.name : id} ใช้โควตา${label}เต็มแล้ว!`,
-          });
+        if (newWkday > 0) {
+          const existing = await quotaCount(id, 'mon', weekId);
+          if (existing + newWkday > 3) {
+            const m = memberObjs.find(mo => mo.sid === id);
+            return res.status(400).json({ message: `สมาชิก ${m ? m.name : id} ใช้โควตาวันธรรมดา (สูงสุด 3 ชม./สัปดาห์) เต็มแล้ว!` });
+          }
+        }
+        if (newWkend > 0) {
+          const existing = await quotaCount(id, 'sat', weekId);
+          if (existing + newWkend > 6) {
+            const m = memberObjs.find(mo => mo.sid === id);
+            return res.status(400).json({ message: `สมาชิก ${m ? m.name : id} ใช้โควตาเสาร์-อาทิตย์ (สูงสุด 6 ชม./สัปดาห์) เต็มแล้ว!` });
+          }
         }
       }
     }
 
     const finalBand = (band || '').trim() || 'ซ้อมส่วนตัว';
 
-    const booking = await Booking.create({
-      slotId, weekId, day, start, end,
-      night: isNight,
-      band: finalBand,
-      members: memberObjs,
-    });
+    for (const s of slotList) {
+      await Booking.create({
+        slotId: s.slotId, weekId, day: s.day, start: s.start, end: s.end,
+        night: !!s.night, band: finalBand, members: memberObjs,
+      });
+    }
 
-    return res.status(201).json({ message: 'Booking created successfully', booking });
+    return res.status(201).json({ message: 'Booking created successfully', count: slotList.length });
   } catch (error) {
     if (error.code === 11000) {
       return res.status(409).json({ message: 'ขออภัย สล็อตเวลานี้เพิ่งโดนจองไปเมื่อครู่ กรุณาเลือกเวลาอื่น' });

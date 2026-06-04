@@ -80,6 +80,37 @@ function daySlots(day: typeof DAYS[number]): { day: SlotDef[]; night: SlotDef[] 
 }
 const slotLabel = (s: { start:string; end:string }) => `${s.start}–${s.end}`;
 
+const WEEKDAY_KEYS = new Set(["mon","tue","wed","thu","fri"]);
+const BLOCKED_STARTS = new Set(["18:00","19:00","20:00"]);
+
+function isBlockedSlot(slot: SlotDef): boolean {
+  return !slot.night && WEEKDAY_KEYS.has(slot.day) && BLOCKED_STARTS.has(slot.start);
+}
+
+// Returns the chain head/tail ids of a consecutive selection (works across midnight)
+function getChainEdges(ids: string[], slots: Record<string, SlotDef>) {
+  if (ids.length === 0) return null;
+  const endSet = new Set(ids.map(id => slots[id].end));
+  const startSet = new Set(ids.map(id => slots[id].start));
+  const headId = ids.find(id => !endSet.has(slots[id].start))!;
+  const tailId = ids.find(id => !startSet.has(slots[id].end))!;
+  return { headId, tailId };
+}
+
+// Sort a set of consecutive slots into time order (handles midnight crossing)
+function sortSlotChain(slots: SlotDef[]): SlotDef[] {
+  if (slots.length <= 1) return slots;
+  const byStart = new Map(slots.map(s => [s.start, s]));
+  const endSet = new Set(slots.map(s => s.end));
+  let cur: SlotDef | undefined = slots.find(s => !endSet.has(s.start)) ?? slots[0];
+  const sorted: SlotDef[] = [];
+  while (cur && sorted.length <= slots.length) {
+    sorted.push(cur);
+    cur = byStart.get(cur.end);
+  }
+  return sorted.length === slots.length ? sorted : slots;
+}
+
 // ─── NAV ─────────────────────────────────────────────────────────────────────
 
 function Nav({ onOpen }: { onOpen:(m:ModalType)=>void }) {
@@ -477,32 +508,34 @@ function SlotLegend() {
       <span className="lg"><i className="sw sel"></i>เลือกอยู่</span>
       <span className="lg"><i className="sw night"></i>หลังเที่ยงคืน · ฟรีไม่จำกัด</span>
       <span className="lg"><i className="sw booked"></i>จองแล้ว</span>
-      <span className="lg"><i className="sw lock"></i>ติดกฎ/โควตา</span>
+      <span className="lg"><i className="sw lock"></i>ปิด / ติดโควตา</span>
     </div>
   );
 }
 
 function SlotChip({ slot, bookings, selected, onPick }: {
-  slot: SlotDef; bookings: BookingsMap; selected:string|null; onPick:(s:SlotDef)=>void;
+  slot: SlotDef; bookings: BookingsMap; selected: string[]; onPick:(s:SlotDef)=>void;
 }) {
   const booked = bookings[slot.id];
-  const isSel = selected === slot.id;
+  const blocked = isBlockedSlot(slot);
+  const isSel = selected.includes(slot.id);
   let cls = "chip";
   if (slot.night) cls += " night";
   if (booked) cls += " booked";
+  else if (blocked) cls += " lock";
   else if (isSel) cls += " sel";
-  const title = booked ? `จองแล้ว · ${booked.band}` : "ว่าง · กดเพื่อเลือก";
+  const title = booked ? `จองแล้ว · ${booked.band}` : blocked ? "ปิดให้บริการ 18:00–21:00 วันธรรมดา" : "ว่าง · กดเพื่อเลือก";
   return (
     <button type="button" className={cls} title={title}
-            onClick={() => onPick(slot)} disabled={!!booked}>
+            onClick={() => onPick(slot)} disabled={!!booked || blocked}>
       <span className="chip-time">{slotLabel(slot)}</span>
-      <span className="chip-band">{booked ? booked.band : (slot.night ? "FREE" : "ว่าง")}</span>
+      <span className="chip-band">{booked ? booked.band : blocked ? "ปิด" : (slot.night ? "FREE" : "ว่าง")}</span>
     </button>
   );
 }
 
 function DayRow({ day, bookings, selected, onPick }: {
-  day: typeof DAYS[number]; bookings: BookingsMap; selected:string|null; onPick:(s:SlotDef)=>void;
+  day: typeof DAYS[number]; bookings: BookingsMap; selected: string[]; onPick:(s:SlotDef)=>void;
 }) {
   const s = daySlots(day);
   return (
@@ -528,10 +561,10 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
   onClose:()=>void; bookings: BookingsMap; mode: Mode; onRefresh:()=>void;
 }) {
   const [done, setDone] = useState(false);
-  const [receipt, setReceipt] = useState<{ band:string; dayMeta:typeof DAYS[number]; slot:SlotDef; members:{sid:string;name:string}[] }|null>(null);
+  const [receipt, setReceipt] = useState<{ band:string; dayMeta:typeof DAYS[number]; slots:SlotDef[]; members:{sid:string;name:string}[] }|null>(null);
   const [band, setBand] = useState("");
   const [members, setMembers] = useState([""]);
-  const [selected, setSelected] = useState<string|null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState<string|null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -573,21 +606,44 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
   // Build flat slot map for picking
   const flatSlots: Record<string, SlotDef> = {};
   DAYS.forEach(d => { const s = daySlots(d); [...s.day,...s.night].forEach(x => { flatSlots[x.id]=x; }); });
-  const selSlot = selected ? flatSlots[selected] : null;
 
   function pickSlot(slot: SlotDef) {
-    if (bookings[slot.id]) return;
-    setSelected(slot.id);
+    if (bookings[slot.id] || isBlockedSlot(slot)) return;
     setError(null);
+
+    if (selected.length === 0) { setSelected([slot.id]); return; }
+
+    // Different day → reset to this slot
+    if (flatSlots[selected[0]].day !== slot.day) { setSelected([slot.id]); return; }
+
+    // Already selected → allow deselecting edge slots only
+    if (selected.includes(slot.id)) {
+      const edges = getChainEdges(selected, flatSlots);
+      if (edges && (slot.id === edges.headId || slot.id === edges.tailId)) {
+        setSelected(selected.filter(id => id !== slot.id));
+      } else {
+        setSelected([slot.id]);
+      }
+      return;
+    }
+
+    // Adjacent to current selection → extend; otherwise reset
+    const edges = getChainEdges(selected, flatSlots);
+    if (edges && (slot.end === flatSlots[edges.headId].start || slot.start === flatSlots[edges.tailId].end)) {
+      setSelected([...selected, slot.id]);
+    } else {
+      setSelected([slot.id]);
+    }
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selSlot) { setError("กรุณาเลือกช่วงเวลาที่ต้องการจองในตาราง"); return; }
+    if (selected.length === 0) { setError("กรุณาเลือกช่วงเวลาที่ต้องการจองในตาราง"); return; }
     const ids = members.map(s => s.trim()).filter(Boolean);
     if (ids.length === 0) { setError("กรุณากรอกรหัสนิสิตของสมาชิกอย่างน้อย 1 คน"); return; }
     if (ids.some(id => !/^\d{10}$/.test(id))) { setError("รหัสนิสิตต้องเป็นตัวเลข 10 หลักทุกคน"); return; }
 
+    const slotsToBook = selected.map(id => flatSlots[id]);
     setSubmitting(true);
     setError(null);
     try {
@@ -595,11 +651,7 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          slotId: selSlot.id,
-          day: selSlot.day,
-          start: selSlot.start,
-          end: selSlot.end,
-          night: selSlot.night,
+          slots: slotsToBook.map(s => ({ slotId: s.id, day: s.day, start: s.start, end: s.end, night: s.night })),
           band,
           members: ids,
         }),
@@ -607,14 +659,14 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
       const data = await res.json();
       if (!res.ok) { setError(data.message || "Booking failed"); return; }
 
-      // Build receipt
       const memberObjs = ids.map(id => {
         const info = cache.current[id];
         return { sid: id, name: (info && info !== "loading") ? info.name : id };
       });
-      const dayMeta = DAYS.find(d => d.key === selSlot.day)!;
+      const sorted = sortSlotChain(slotsToBook);
+      const dayMeta = DAYS.find(d => d.key === sorted[0].day)!;
       const finalBand = band.trim() || "ซ้อมส่วนตัว";
-      setReceipt({ band: finalBand, dayMeta, slot: selSlot, members: memberObjs });
+      setReceipt({ band: finalBand, dayMeta, slots: sorted, members: memberObjs });
       setDone(true);
       onRefresh();
     } catch {
@@ -639,7 +691,8 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
             <div className="recap">
               <div><b>Band</b><span>{receipt.band}</span></div>
               <div><b>Day</b><span>{receipt.dayMeta.en} · {receipt.dayMeta.th}</span></div>
-              <div><b>Time</b><span>{slotLabel(receipt.slot)}{receipt.slot.night ? " · OVERNIGHT" : ""}</span></div>
+              <div><b>Time</b><span>{receipt.slots[0].start}–{receipt.slots[receipt.slots.length-1].end}{receipt.slots.some(s=>s.night) ? " · OVERNIGHT" : ""}</span></div>
+              <div><b>Duration</b><span>{receipt.slots.length} ชั่วโมง</span></div>
               <div><b>Members</b><span>{receipt.members.length} คน</span></div>
             </div>
             <button className="modal-submit red" onClick={onClose}>Back to Home · กลับหน้าหลัก</button>
@@ -685,10 +738,18 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
 
             {/* Slot grid */}
             <div className="field">
-              <label>Pick a Slot <span className="th">เลือกช่วงเวลา · ห้องซ้อมเดียว</span></label>
+              <label>Pick Slots <span className="th">เลือกช่วงเวลา · กดต่อเนื่องเพื่อจองหลายชั่วโมง</span></label>
+              {selected.length > 0 && (() => {
+                const sorted = sortSlotChain(selected.map(id => flatSlots[id]));
+                return (
+                  <div style={{fontFamily:"var(--font-en)",fontWeight:700,fontSize:13,padding:"6px 10px",background:"#000",color:"var(--yellow)",display:"inline-block",marginBottom:6}}>
+                    ✓ เลือก {selected.length} ชม. · {sorted[0].start}–{sorted[sorted.length-1].end}
+                  </div>
+                );
+              })()}
               <SlotLegend/>
               <div className="grid-block">
-                <div className="grid-banner">WEEKDAYS · จันทร์–ศุกร์ <span>ซ้อมได้ 17:00 เป็นต้นไป</span></div>
+                <div className="grid-banner">WEEKDAYS · จันทร์–ศุกร์ <span>17:00+ · ปิด 18:00–21:00 · สูงสุด 3 ชม./สัปดาห์</span></div>
                 {DAYS.filter(d => !d.wk).map(d => (
                   <DayRow key={d.key} day={d} bookings={bookings} selected={selected} onPick={pickSlot}/>
                 ))}
