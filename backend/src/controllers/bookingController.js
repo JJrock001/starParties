@@ -24,16 +24,16 @@ const getOrCreateSettings = async () => {
   return s;
 };
 
-const quotaCount = async (sid, weekId) => {
-  return await Booking.countDocuments({ weekId, night: false, 'members.sid': sid });
-};
+const WEEKEND_DAYS = new Set(['sat', 'sun']);
 
-const hasAdjacentDaytime = async (sid, slot, weekId) => {
-  const bookings = await Booking.find({ weekId, day: slot.day, night: false, 'members.sid': sid });
-  for (const b of bookings) {
-    if (b.end === slot.start || slot.end === b.start) return true;
-  }
-  return false;
+const quotaCount = async (sid, day, weekId) => {
+  const isWknd = WEEKEND_DAYS.has(day);
+  return await Booking.countDocuments({
+    weekId,
+    night: false,
+    day: isWknd ? { $in: ['sat', 'sun'] } : { $nin: ['sat', 'sun'] },
+    'members.sid': sid,
+  });
 };
 
 const getBookings = async (req, res) => {
@@ -88,20 +88,17 @@ const createBooking = async (req, res) => {
     }
 
     const isNight = !!night;
+    const isWknd = WEEKEND_DAYS.has(day);
+    const quota = isWknd ? 6 : 3;
 
     if (!isNight && mode !== 'buffet') {
       for (const id of ids) {
-        const count = await quotaCount(id, weekId);
-        if (count >= 2) {
-          return res.status(400).json({ message: 'มีสมาชิกในวงใช้โควตาช่วงเวลาทองเกินกำหนด (เกิน 2 สล็อต)!' });
-        }
-      }
-      for (const id of ids) {
-        const adjacent = await hasAdjacentDaytime(id, { day, start, end }, weekId);
-        if (adjacent) {
+        const count = await quotaCount(id, day, weekId);
+        if (count >= quota) {
           const m = memberObjs.find(mo => mo.sid === id);
+          const label = isWknd ? 'เสาร์-อาทิตย์ (สูงสุด 6 ชม./สัปดาห์)' : 'วันธรรมดา (สูงสุด 3 ชม./สัปดาห์)';
           return res.status(400).json({
-            message: `สมาชิก ${m ? m.name : id} มีคิวซ้อมติดกันอยู่แล้ว — ห้ามจองช่วงเวลาที่ติดกัน`,
+            message: `สมาชิก ${m ? m.name : id} ใช้โควตา${label}เต็มแล้ว!`,
           });
         }
       }

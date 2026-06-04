@@ -55,10 +55,10 @@ interface MemberInfo {
 
 // ─── SLOT MATRIX ─────────────────────────────────────────────────────────────
 
-const WEEKDAY_DAY   = [["17:00","19:00"],["19:00","21:00"],["21:00","23:00"]] as const;
-const WEEKDAY_NIGHT = [["23:00","01:00"],["01:00","03:00"],["03:00","05:00"],["05:00","06:00"]] as const;
-const WEEKEND_DAY   = [["08:00","10:00"],["10:00","12:00"],["12:00","14:00"],["14:00","16:00"],["16:00","18:00"],["18:00","20:00"],["20:00","22:00"],["22:00","00:00"]] as const;
-const WEEKEND_NIGHT = [["00:00","02:00"],["02:00","04:00"],["04:00","06:00"]] as const;
+const WEEKDAY_DAY   = [["17:00","18:00"],["18:00","19:00"],["19:00","20:00"],["20:00","21:00"],["21:00","22:00"],["22:00","23:00"]] as const;
+const WEEKDAY_NIGHT = [["23:00","00:00"],["00:00","01:00"],["01:00","02:00"],["02:00","03:00"],["03:00","04:00"],["04:00","05:00"],["05:00","06:00"]] as const;
+const WEEKEND_DAY   = [["08:00","09:00"],["09:00","10:00"],["10:00","11:00"],["11:00","12:00"],["12:00","13:00"],["13:00","14:00"],["14:00","15:00"],["15:00","16:00"],["16:00","17:00"],["17:00","18:00"],["18:00","19:00"],["19:00","20:00"],["20:00","21:00"],["21:00","22:00"],["22:00","23:00"],["23:00","00:00"]] as const;
+const WEEKEND_NIGHT = [["00:00","01:00"],["01:00","02:00"],["02:00","03:00"],["03:00","04:00"],["04:00","05:00"],["05:00","06:00"]] as const;
 
 const DAYS = [
   { key:"mon", en:"MON", th:"จันทร์",   wk:false },
@@ -79,15 +79,6 @@ function daySlots(day: typeof DAYS[number]): { day: SlotDef[]; night: SlotDef[] 
   return { day: mk(dayArr, false), night: mk(nightArr, true) };
 }
 const slotLabel = (s: { start:string; end:string }) => `${s.start}–${s.end}`;
-
-// Advisory lock reasons (front-end side, based on local booking state)
-function advisoryLock(slot: SlotDef, bookings: BookingsMap, validMemberNames: string[], mode: Mode): "booked"|"quota"|"interval"|null {
-  if (bookings[slot.id]) return "booked";
-  if (slot.night || mode === "buffet" || validMemberNames.length === 0) return null;
-  // We can't easily check quota/interval without knowing the sids of the valid members
-  // The backend enforces these; here we just allow picking
-  return null;
-}
 
 // ─── NAV ─────────────────────────────────────────────────────────────────────
 
@@ -710,7 +701,7 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
 
             {/* Mode badge */}
             <div style={{fontSize:13,fontFamily:"var(--font-en)",fontWeight:700,opacity:0.6}}>
-              MODE: {mode === "buffet" ? "BUFFET · ไม่จำกัดโควตา" : "LAUNCH · โควตา 2 สล็อต/สัปดาห์"}
+              MODE: {mode === "buffet" ? "BUFFET · ไม่จำกัดโควตา" : "LAUNCH · วันธรรมดา 3 ชม./สัปดาห์ · เสาร์-อาทิตย์ 6 ชม./สัปดาห์"}
             </div>
 
             <button className="modal-submit red" type="submit" disabled={submitting}>
@@ -747,7 +738,7 @@ function TestPanel({ mode, bookingCount, onStateChange }: {
         <div className="tp-state">
           <span className="tp-k">MODE</span>
           <span className={"tp-badge " + (mode === "buffet" ? "b" : "r")}>
-            {mode === "buffet" ? "BUFFET · ไม่จำกัดโควตา" : "LAUNCH · โควตา 2 สล็อต"}
+            {mode === "buffet" ? "BUFFET · ไม่จำกัดโควตา" : "LAUNCH · จ-ศ 3ชม. / ส-อ 6ชม."}
           </span>
         </div>
         <button className="tp-btn r" onClick={() => trigger("state1")} disabled={loading}>
