@@ -8,9 +8,11 @@ const activitySchema = new mongoose.Schema(
     name:     { type: String, required: true, trim: true },
     nameTh:   { type: String, default: '', trim: true },
     tag:      { type: String, enum: ['jam','live','open','other'], default: 'jam' },
-    tagLabel: { type: String, required: true, trim: true },
-    active:   { type: Boolean, default: true },
-    order:    { type: Number, default: 0 },
+    tagLabel:    { type: String, required: true, trim: true },
+    imageUrl:    { type: String, default: '', trim: true },
+    description: { type: String, default: '', trim: true },
+    active:      { type: Boolean, default: true },
+    order:       { type: Number, default: 0 },
   },
   { timestamps: true }
 );

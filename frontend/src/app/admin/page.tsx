@@ -375,12 +375,15 @@ interface AdminActivity {
   nameTh: string;
   tag: 'jam'|'live'|'open'|'other';
   tagLabel: string;
+  imageUrl: string;
+  description: string;
   active: boolean;
   order: number;
 }
 
 const EMPTY_ACT: Omit<AdminActivity, '_id'> = {
-  badge:"", color:"r", date:"", name:"", nameTh:"", tag:"jam", tagLabel:"JAM", active:true, order:0,
+  badge:"", color:"r", date:"", name:"", nameTh:"", tag:"jam", tagLabel:"JAM",
+  imageUrl:"", description:"", active:true, order:0,
 };
 
 const COLOR_LABELS = { r:"Red", y:"Yellow", b:"Blue", o:"Orange" };
@@ -456,8 +459,16 @@ function ActivitiesTab({ token }: { token: string }) {
               <input value={form.name} onChange={set("name")} placeholder="Star Jam #06"/>
             </div>
             <div className="adm-field adm-field-wide">
-              <label>DESCRIPTION · รายละเอียด (TH)</label>
+              <label>SHORT DESC · รายละเอียดสั้น (TH) · แสดงในการ์ด</label>
               <input value={form.nameTh} onChange={set("nameTh")} placeholder="แจมสดทุกแนว · Common Room"/>
+            </div>
+            <div className="adm-field adm-field-wide">
+              <label>LONG DESC · รายละเอียดเพิ่มเติม · แสดงใน popup</label>
+              <input value={form.description} onChange={set("description")} placeholder="รายละเอียดกิจกรรม เช่น กฎ กติกา สถานที่จอดรถ ฯลฯ"/>
+            </div>
+            <div className="adm-field adm-field-wide">
+              <label>IMAGE URL · ลิงก์รูปภาพ (URL หรือ base64)</label>
+              <input value={form.imageUrl} onChange={set("imageUrl")} placeholder="https://... หรือ data:image/png;base64,..."/>
             </div>
             <div className="adm-field">
               <label>TAG TYPE</label>

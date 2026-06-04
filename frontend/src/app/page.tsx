@@ -293,6 +293,8 @@ interface ActivityItem {
   nameTh: string;
   tag: string;
   tagLabel: string;
+  imageUrl?: string;
+  description?: string;
 }
 
 const FALLBACK_EVENTS: ActivityItem[] = [
@@ -304,7 +306,47 @@ const FALLBACK_EVENTS: ActivityItem[] = [
 
 const GALLERY = [{ cap:"STAR JAM #04" },{ cap:"OPEN MIC · MAY" },{ cap:"ROOFTOP SET" }];
 
+const ACT_COLOR: Record<string,string> = { r:"var(--red)", y:"var(--yellow)", b:"var(--blue)", o:"var(--orange)" };
+
+function ActivityModal({ act, onClose }: { act: ActivityItem; onClose: () => void }) {
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", k);
+    document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", k); document.body.style.overflow = ""; };
+  }, [onClose]);
+
+  return (
+    <div className="overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal act-modal" role="dialog" aria-modal="true">
+        <div className="modal-head" style={{ background: ACT_COLOR[act.color] ?? "var(--red)" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+            <div className="act-modal-badge">{act.badge}</div>
+            <div>
+              <h3>{act.name}</h3>
+              <div className="th" style={{ marginTop:2 }}>{act.date}</div>
+            </div>
+          </div>
+          <CloseBtn onClick={onClose}/>
+        </div>
+        {act.imageUrl && (
+          <div className="act-modal-img">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={act.imageUrl} alt={act.name}/>
+          </div>
+        )}
+        <div className="act-modal-body">
+          {act.nameTh && <div className="act-modal-short th">{act.nameTh}</div>}
+          {act.description && <p className="act-modal-desc">{act.description}</p>}
+          <div className={"ev-tag " + act.tag} style={{ display:"inline-block", marginTop:12 }}>{act.tagLabel}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Activity({ onOpen, events }: { onOpen:(m:ModalType)=>void; events: ActivityItem[] }) {
+  const [popup, setPopup] = useState<ActivityItem | null>(null);
   const list = events.length > 0 ? events : FALLBACK_EVENTS;
   return (
     <section id="activity">
@@ -312,7 +354,7 @@ function Activity({ onOpen, events }: { onOpen:(m:ModalType)=>void; events: Acti
       <div className="activity">
         <div className="cal">
           {list.map((e) => (
-            <div className="ev" key={e._id} onClick={() => onOpen("booking")}>
+            <div className="ev" key={e._id} onClick={() => setPopup(e)}>
               <div className={"ev-badge " + e.color}>{e.badge}</div>
               <div className="ev-date">{e.date}</div>
               <div className="ev-mid">
@@ -332,6 +374,7 @@ function Activity({ onOpen, events }: { onOpen:(m:ModalType)=>void; events: Acti
           ))}
         </div>
       </div>
+      {popup && <ActivityModal act={popup} onClose={() => setPopup(null)}/>}
     </section>
   );
 }
