@@ -853,6 +853,32 @@ button { font-family: inherit; }
 }
 .tt-edit-inp:focus { background: #fff; }
 
+/* Image preview + crop */
+.adm-img-preview {
+  width: 100%; aspect-ratio: 16/9; overflow: hidden;
+  border: var(--bold-rule) solid #000; background: #111;
+  position: relative;
+}
+.adm-img-preview img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.adm-img-err {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: var(--red); font-family: var(--font-en); font-weight: 700; font-size: 13px;
+  background: #111;
+}
+.adm-img-preview img + .adm-img-err { display: none; }
+.adm-focus-grid {
+  display: grid; grid-template-columns: repeat(3, 36px); gap: 3px; margin-top: 8px;
+}
+.adm-focus-btn {
+  width: 36px; height: 36px; border: var(--rule) solid #ccc; background: #fff;
+  font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.1s linear;
+}
+.adm-focus-btn:hover  { background: var(--concrete); }
+.adm-focus-btn.active { background: #000; color: var(--yellow); border-color: #000; }
+
 .adm-ev-badge {
   width: 36px; height: 36px; border-radius: 999px; border: var(--rule) solid #000;
   display: flex; align-items: center; justify-content: center;

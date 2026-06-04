@@ -294,6 +294,7 @@ interface ActivityItem {
   tag: string;
   tagLabel: string;
   imageUrl?: string;
+  imageFocus?: string;
   description?: string;
 }
 
@@ -332,7 +333,7 @@ function ActivityModal({ act, onClose }: { act: ActivityItem; onClose: () => voi
         {act.imageUrl && (
           <div className="act-modal-img">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={act.imageUrl} alt={act.name}/>
+            <img src={act.imageUrl} alt={act.name} style={{ objectPosition: act.imageFocus ?? "center" }}/>
           </div>
         )}
         <div className="act-modal-body">
