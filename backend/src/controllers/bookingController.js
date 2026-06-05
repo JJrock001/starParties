@@ -30,15 +30,55 @@ const getNextWeekId = () => {
   return `${y}-W${String(weekNo).padStart(2, '0')}`;
 };
 
+// Auto-detect mode: launch only during Sunday 18:00–23:59, otherwise buffet
+const getAutoMode = () => {
+  const now = new Date();
+  const day = now.getUTCDay();           // 0 = Sunday
+  const mins = now.getUTCHours() * 60 + now.getUTCMinutes();
+  return (day === 0 && mins >= 18 * 60) ? 'launch' : 'buffet';
+};
+
 const getOrCreateSettings = async () => {
+  const autoMode = getAutoMode();
   let s = await Settings.findOne({ key: 'booking' });
   if (!s) {
     s = await Settings.create({
       key: 'booking',
-      value: { weekId: getCurrentWeekId(), mode: 'launch' },
+      value: { weekId: getCurrentWeekId(), mode: autoMode },
     });
+    return s;
+  }
+  // Auto-update mode if it doesn't match current time
+  if (s.value.mode !== autoMode) {
+    s.value = { ...s.value, mode: autoMode };
+    s.markModified('value');
+    await s.save();
   }
   return s;
+};
+
+// ─── Past slot helpers ───────────────────────────────────────
+
+const DAY_OFFSET = { mon:0, tue:1, wed:2, thu:3, fri:4, sat:5, sun:6 };
+
+const weekIdToMonday = (weekId) => {
+  const [yearStr, weekStr] = weekId.split('-W');
+  const year = parseInt(yearStr);
+  const week = parseInt(weekStr);
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = (jan4.getUTCDay() + 6) % 7; // Mon=0
+  const monday = new Date(jan4);
+  monday.setUTCDate(jan4.getUTCDate() - jan4Day + (week - 1) * 7);
+  return monday;
+};
+
+const isSlotPast = (weekId, day, start) => {
+  const monday = weekIdToMonday(weekId);
+  const slotDate = new Date(monday);
+  slotDate.setUTCDate(monday.getUTCDate() + (DAY_OFFSET[day] ?? 0));
+  const [h, m] = start.split(':').map(Number);
+  slotDate.setUTCHours(h, m, 0, 0);
+  return slotDate < new Date();
 };
 
 // ─── Rule constants ──────────────────────────────────────────
@@ -80,11 +120,12 @@ const createBooking = async (req, res) => {
       return res.status(400).json({ message: 'Missing required booking fields' });
     }
 
-    // ── Rule 6: locked 06:00–08:00 ──
+    // ── Validate each slot ──
     for (const s of slotList) {
       if (!s.slotId || !s.day || !s.start || !s.end) {
         return res.status(400).json({ message: 'Invalid slot data' });
       }
+      // Rule 6: locked 06:00–08:00
       if (LOCKED_STARTS.has(s.start)) {
         return res.status(400).json({
           message: `ช่วงเวลา ${s.start}–${s.end} ถูกล็อก (06:00–08:00 ไม่เปิดให้จองทุกกรณี)`,
@@ -92,23 +133,30 @@ const createBooking = async (req, res) => {
       }
     }
 
-    // ── Per-booking slot count limit (frontend rule, backend safety) ──
+    // ── Per-booking slot count limit ──
     const daytimeSlots = slotList.filter(s => !s.night);
     if (daytimeSlots.length > 0) {
       const slotDay  = daytimeSlots[0].day;
       const isWknd   = WEEKEND_DAYS.has(slotDay);
-      const maxPerBk = isWknd ? 2 : 3;
+      const maxPerBk = 3; // both weekday and weekend: up to 3 consecutive hours per block
       if (daytimeSlots.length > maxPerBk) {
         return res.status(400).json({
-          message: isWknd
-            ? 'วันเสาร์-อาทิตย์แต่ละช่วงเวลาจองได้สูงสุด 2 ชั่วโมง'
-            : 'วันธรรมดาจองได้ 1 ช่วงเวลาต่อครั้ง (สูงสุด 3 ชั่วโมงติดกัน)',
+          message: `จองได้สูงสุด ${maxPerBk} ชั่วโมงต่อเนื่องต่อครั้ง`,
         });
       }
     }
 
     const settings = await getOrCreateSettings();
     const { weekId, mode } = settings.value;
+
+    // ── Past slot check ──
+    for (const s of slotList) {
+      if (isSlotPast(weekId, s.day, s.start)) {
+        return res.status(400).json({
+          message: `ช่วงเวลา ${s.start} ผ่านมาแล้ว ไม่สามารถจองย้อนหลังได้`,
+        });
+      }
+    }
 
     // ── Slot conflict check ──
     for (const s of slotList) {

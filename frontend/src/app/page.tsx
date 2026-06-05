@@ -82,8 +82,30 @@ function daySlots(day: typeof DAYS[number]): { day: SlotDef[]; night: SlotDef[] 
 const slotLabel = (s: { start:string; end:string }) => `${s.start}–${s.end}`;
 
 const WEEKDAY_KEYS  = new Set(["mon","tue","wed","thu","fri"]);
-const MAX_WDAY = 3; // weekday: 1 continuous block up to 3h
-const MAX_WEND = 2; // weekend: 1 continuous block up to 2h per ช่วง
+const MAX_WDAY = 3; // weekday: 1 block up to 3h consecutive
+const MAX_WEND = 3; // weekend: each block up to 3h consecutive (can make 2 bookings/day)
+
+const DAY_OFFSET: Record<string,number> = { mon:0, tue:1, wed:2, thu:3, fri:4, sat:5, sun:6 };
+
+function weekIdToMonday(weekId: string): Date {
+  const [yearStr, weekStr] = weekId.split('-W');
+  const year = parseInt(yearStr), week = parseInt(weekStr);
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = (jan4.getUTCDay() + 6) % 7;
+  const monday = new Date(jan4);
+  monday.setUTCDate(jan4.getUTCDate() - jan4Day + (week - 1) * 7);
+  return monday;
+}
+
+function isSlotPast(weekId: string, slot: SlotDef): boolean {
+  if (!weekId) return false;
+  const monday = weekIdToMonday(weekId);
+  const slotDate = new Date(monday);
+  slotDate.setUTCDate(monday.getUTCDate() + (DAY_OFFSET[slot.day] ?? 0));
+  const [h, m] = slot.start.split(':').map(Number);
+  slotDate.setUTCHours(h, m, 0, 0);
+  return slotDate < new Date();
+}
 
 const PRIME_SEQ = ["18:00", "19:00", "20:00"] as const;
 const PRIME_SET = new Set(PRIME_SEQ);
@@ -597,22 +619,24 @@ function SlotLegend() {
   );
 }
 
-function SlotChip({ slot, bookings, selected, onPick }: {
-  slot: SlotDef; bookings: BookingsMap; selected: string[]; onPick:(s:SlotDef)=>void;
+function SlotChip({ slot, bookings, selected, weekId, onPick }: {
+  slot: SlotDef; bookings: BookingsMap; selected: string[]; weekId: string; onPick:(s:SlotDef)=>void;
 }) {
   const booked = bookings[slot.id];
-  const isSel = selected.includes(slot.id);
+  const isSel  = selected.includes(slot.id);
+  const past   = !booked && isSlotPast(weekId, slot);
   let cls = "chip";
   if (slot.night) cls += " night";
-  if (booked) cls += " booked";
+  if (booked)     cls += " booked";
+  else if (past)  cls += " lock";
   else if (isSel) cls += " sel";
   return (
     <div className="chip-wrap">
-      <button type="button" className={cls}
+      <button type="button" className={cls} title={past ? "เวลาผ่านไปแล้ว" : undefined}
               style={booked ? { background: bandColor(booked.band) } : undefined}
-              onClick={() => onPick(slot)} disabled={!!booked}>
+              onClick={() => onPick(slot)} disabled={!!booked || past}>
         <span className="chip-time">{slotLabel(slot)}</span>
-        <span className="chip-band">{booked ? booked.band : (slot.night ? "FREE" : "ว่าง")}</span>
+        <span className="chip-band">{booked ? booked.band : past ? "ผ่านแล้ว" : (slot.night ? "FREE" : "ว่าง")}</span>
       </button>
       {booked && (
         <div className="chip-tip">
@@ -629,8 +653,8 @@ function SlotChip({ slot, bookings, selected, onPick }: {
   );
 }
 
-function DayRow({ day, bookings, selected, onPick }: {
-  day: typeof DAYS[number]; bookings: BookingsMap; selected: string[]; onPick:(s:SlotDef)=>void;
+function DayRow({ day, bookings, selected, weekId, onPick }: {
+  day: typeof DAYS[number]; bookings: BookingsMap; selected: string[]; weekId: string; onPick:(s:SlotDef)=>void;
 }) {
   const s = daySlots(day);
   return (
@@ -641,19 +665,19 @@ function DayRow({ day, bookings, selected, onPick }: {
       </div>
       <div className="day-slots">
         <div className="slot-group">
-          {s.day.map(slot => <SlotChip key={slot.id} slot={slot} bookings={bookings} selected={selected} onPick={onPick}/>)}
+          {s.day.map(slot => <SlotChip key={slot.id} slot={slot} bookings={bookings} selected={selected} weekId={weekId} onPick={onPick}/>)}
         </div>
         <div className="night-sep">หลังเที่ยงคืน · FREE</div>
         <div className="slot-group">
-          {s.night.map(slot => <SlotChip key={slot.id} slot={slot} bookings={bookings} selected={selected} onPick={onPick}/>)}
+          {s.night.map(slot => <SlotChip key={slot.id} slot={slot} bookings={bookings} selected={selected} weekId={weekId} onPick={onPick}/>)}
         </div>
       </div>
     </div>
   );
 }
 
-function BookingModal({ onClose, bookings, mode, onRefresh }: {
-  onClose:()=>void; bookings: BookingsMap; mode: Mode; onRefresh:()=>void;
+function BookingModal({ onClose, bookings, mode, weekId, onRefresh }: {
+  onClose:()=>void; bookings: BookingsMap; mode: Mode; weekId: string; onRefresh:()=>void;
 }) {
   const [done, setDone] = useState(false);
   const [receipt, setReceipt] = useState<{ band:string; dayMeta:typeof DAYS[number]; slots:SlotDef[]; members:{sid:string;name:string}[] }|null>(null);
@@ -703,7 +727,7 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
   DAYS.forEach(d => { const s = daySlots(d); [...s.day,...s.night].forEach(x => { flatSlots[x.id]=x; }); });
 
   function pickSlot(slot: SlotDef) {
-    if (bookings[slot.id]) return;
+    if (bookings[slot.id] || isSlotPast(weekId, slot)) return;
     setError(null);
 
     const isWeekday = WEEKDAY_KEYS.has(slot.day);
@@ -863,11 +887,11 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
               <div className="grid-block">
                 <div className="grid-banner">WEEKDAYS · จันทร์–ศุกร์ <span>17:00+ · 1 ช่วงเวลา/ครั้ง (1–3 ชม.ติดกัน) · 3 ชม./วัน · Prime Time ห้ามติดกันเกิน 2 ชม.</span></div>
                 {DAYS.filter(d => !d.wk).map(d => (
-                  <DayRow key={d.key} day={d} bookings={bookings} selected={selected} onPick={pickSlot}/>
+                  <DayRow key={d.key} day={d} bookings={bookings} selected={selected} weekId={weekId} onPick={pickSlot}/>
                 ))}
-                <div className="grid-banner alt">WEEKENDS · เสาร์–อาทิตย์ <span>08:00+ · 2 ช่วง/ครั้ง · 6 ชม./วัน · Prime Time 18:00–21:00 ห้ามติดกัน</span></div>
+                <div className="grid-banner alt">WEEKENDS · เสาร์–อาทิตย์ <span>08:00+ · ช่วงละ 1–3 ชม. ติดกัน · 6 ชม./วัน · Prime Time ห้ามติดกันเกิน 2 ชม.</span></div>
                 {DAYS.filter(d => d.wk).map(d => (
-                  <DayRow key={d.key} day={d} bookings={bookings} selected={selected} onPick={pickSlot}/>
+                  <DayRow key={d.key} day={d} bookings={bookings} selected={selected} weekId={weekId} onPick={pickSlot}/>
                 ))}
               </div>
             </div>
@@ -937,6 +961,7 @@ export default function HomePage() {
   const [modal, setModal] = useState<ModalType>(null);
   const [bookings, setBookings] = useState<BookingsMap>({});
   const [mode, setMode] = useState<Mode>("launch");
+  const [weekId, setWeekId] = useState<string>("");
   const [events, setEvents] = useState<ActivityItem[]>([]);
 
   const fetchBookings = async () => {
@@ -946,6 +971,7 @@ export default function HomePage() {
       const data = await res.json();
       setBookings(data.bookings || {});
       setMode(data.mode || "launch");
+      setWeekId(data.weekId || "");
     } catch {}
   };
 
@@ -990,6 +1016,7 @@ export default function HomePage() {
           onClose={closeModal}
           bookings={bookings}
           mode={mode}
+          weekId={weekId}
           onRefresh={fetchBookings}
         />
       )}
