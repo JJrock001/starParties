@@ -85,6 +85,17 @@ const WEEKDAY_KEYS  = new Set(["mon","tue","wed","thu","fri"]);
 const MAX_WDAY = 3; // weekday: 1 continuous block up to 3h
 const MAX_WEND = 2; // weekend: 1 continuous block up to 2h per ช่วง
 
+const PRIME_SEQ = ["18:00", "19:00", "20:00"] as const;
+const PRIME_SET = new Set(PRIME_SEQ);
+
+// Count longest consecutive Prime Time run in a set of slot ids
+function maxPrimeRun(ids: string[], slots: Record<string, SlotDef>): number {
+  const booked = new Set(ids.filter(id => !slots[id].night && PRIME_SET.has(slots[id].start)).map(id => slots[id].start));
+  let max = 0, run = 0;
+  for (const t of PRIME_SEQ) { run = booked.has(t) ? run + 1 : 0; max = Math.max(max, run); }
+  return max;
+}
+
 // Deterministic color per band name
 const BAND_COLORS = [
   "#E04E38","#E8734A","#E8A030","#C8B820",
@@ -726,6 +737,11 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
     // Must be adjacent to extend; otherwise start a new selection
     const edges = getChainEdges(selected, flatSlots);
     if (edges && (slot.end === flatSlots[edges.headId].start || slot.start === flatSlots[edges.tailId].end)) {
+      // Prime Time: block if consecutive Prime Time run would exceed 2h
+      if (maxPrimeRun([...selected, slot.id], flatSlots) > 2) {
+        setError("Prime Time (18:00–21:00) ห้ามจองต่อเนื่องเกิน 2 ชั่วโมง");
+        return;
+      }
       setSelected([...selected, slot.id]);
     } else {
       setSelected([slot.id]);
