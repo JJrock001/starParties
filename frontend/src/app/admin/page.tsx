@@ -315,6 +315,7 @@ function ReservationsTab({ token }: { token: string }) {
   const [weekId, setWeekId]     = useState("");
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [editor, setEditor]     = useState<EditorState>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const loadWeeks = useCallback(async () => {
     const res = await api(token, "/weeks");
@@ -702,12 +703,44 @@ export default function AdminPage() {
   const [token, setToken] = useState<string | null>(null);
   const [tab, setTab]     = useState<"bookings" | "members" | "activities">("bookings");
   const [ready, setReady] = useState(false);
+  const [mode, setMode]   = useState<"launch" | "buffet">("launch");
+  const [modeLoading, setModeLoading] = useState(false);
 
   useEffect(() => {
     const t = sessionStorage.getItem("adm-tok");
     if (t) setToken(t);
     setReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    fetchMode();
+  }, [token]);
+
+  const fetchMode = async () => {
+    try {
+      const res = await fetch("/api/bookings/mode");
+      if (res.ok) {
+        const { mode: m } = await res.json();
+        setMode(m || "launch");
+      }
+    } catch {}
+  };
+
+  const setModeAPI = async (state: "state1" | "state2") => {
+    setModeLoading(true);
+    try {
+      const res = await fetch("/api/bookings/mode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ state }),
+      });
+      if (res.ok) {
+        await fetchMode();
+      }
+    } catch {}
+    finally { setModeLoading(false); }
+  };
 
   const login = (t: string) => { sessionStorage.setItem("adm-tok", t); setToken(t); };
   const logout = () => { sessionStorage.removeItem("adm-tok"); setToken(null); };
@@ -719,6 +752,15 @@ export default function AdminPage() {
     <div className="adm">
       <div className="adm-header">
         <span className="adm-title">★ STARPARTY<span className="adm-badge-pill">ADMIN</span></span>
+        <div className="adm-mode-controls">
+          <span className={`adm-mode-badge ${mode}`}>{mode === "launch" ? "LAUNCH" : "FREE BUFFET"}</span>
+          <button className="adm-mode-btn" onClick={() => setModeAPI("state1")} disabled={modeLoading}>
+            Open Week (18:00)
+          </button>
+          <button className="adm-mode-btn" onClick={() => setModeAPI("state2")} disabled={modeLoading}>
+            Buffet (23:59)
+          </button>
+        </div>
         <button className="adm-logout" onClick={logout}>LOGOUT</button>
       </div>
 

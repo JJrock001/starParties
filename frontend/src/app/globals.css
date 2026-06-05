@@ -652,6 +652,25 @@ button { font-family: inherit; }
 }
 .adm-logout:hover { background: #fff; color: #000; }
 
+/* Mode controls */
+.adm-mode-controls {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--font-en); font-weight: 700; font-size: 12px;
+}
+.adm-mode-badge {
+  padding: 6px 12px; border: var(--rule) solid #fff; border-radius: 0;
+  background: transparent; color: #fff;
+}
+.adm-mode-badge.launch { background: rgba(224, 78, 56, 0.3); border-color: var(--red); color: var(--red); }
+.adm-mode-badge.buffet { background: rgba(70, 144, 213, 0.3); border-color: var(--blue); color: var(--blue); }
+.adm-mode-btn {
+  padding: 6px 12px; border: var(--rule) solid #fff; background: transparent; color: #fff; cursor: pointer;
+  font-family: var(--font-en); font-weight: 700; font-size: 11px; letter-spacing: 0.05em;
+  transition: background 0.1s linear, color 0.1s linear;
+}
+.adm-mode-btn:hover:not(:disabled) { background: #fff; color: #000; }
+.adm-mode-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* Tabs */
 .adm-tabbar { display: flex; border-bottom: var(--bold-rule) solid #000; background: var(--paper); }
 .adm-tab {
