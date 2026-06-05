@@ -82,8 +82,8 @@ function daySlots(day: typeof DAYS[number]): { day: SlotDef[]; night: SlotDef[] 
 const slotLabel = (s: { start:string; end:string }) => `${s.start}–${s.end}`;
 
 const WEEKDAY_KEYS  = new Set(["mon","tue","wed","thu","fri"]);
-const MAX_WDAY = 1; // max slots per booking on weekdays
-const MAX_WEND = 2; // max slots per booking on weekends
+const MAX_WDAY = 3; // weekday: 1 continuous block up to 3h
+const MAX_WEND = 2; // weekend: 1 continuous block up to 2h per ช่วง
 
 // Deterministic color per band name
 const BAND_COLORS = [
@@ -718,8 +718,8 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
     const currentDay = selected.filter(id => !flatSlots[id].night).length;
     if (!slot.night && currentDay >= maxSlots) {
       setError(isWeekday
-        ? "วันธรรมดาจองได้ 1 ช่วงเวลาต่อครั้ง"
-        : "วันเสาร์-อาทิตย์จองได้ไม่เกิน 2 ช่วงเวลาต่อครั้ง");
+        ? "วันธรรมดาจองได้ 1 ช่วงต่อครั้ง (สูงสุด 3 ชม.ติดกัน)"
+        : "วันเสาร์-อาทิตย์แต่ละช่วงเวลาจองได้สูงสุด 2 ชม.");
       return;
     }
 
@@ -845,7 +845,7 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
               })()}
               <SlotLegend/>
               <div className="grid-block">
-                <div className="grid-banner">WEEKDAYS · จันทร์–ศุกร์ <span>17:00+ · 1 ช่วง/ครั้ง · 3 ชม./วัน · Prime Time 18:00–21:00 ห้ามติดกัน</span></div>
+                <div className="grid-banner">WEEKDAYS · จันทร์–ศุกร์ <span>17:00+ · 1 ช่วงเวลา/ครั้ง (1–3 ชม.ติดกัน) · 3 ชม./วัน · Prime Time ห้ามติดกันเกิน 2 ชม.</span></div>
                 {DAYS.filter(d => !d.wk).map(d => (
                   <DayRow key={d.key} day={d} bookings={bookings} selected={selected} onPick={pickSlot}/>
                 ))}
@@ -858,7 +858,7 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
 
             {/* Mode badge */}
             <div style={{fontSize:13,fontFamily:"var(--font-en)",fontWeight:700,opacity:0.6}}>
-              MODE: {mode === "buffet" ? "FREE BUFFET · ปลดล็อกทุกโควตา" : "LAUNCH · จ-ศ 1ช่วง/ครั้ง 3ชม./วัน · ส-อ 2ช่วง/ครั้ง 6ชม./วัน · รวม 6ชม./สัปดาห์/วง"}
+              MODE: {mode === "buffet" ? "FREE BUFFET · ปลดล็อกทุกโควตา" : "LAUNCH · จ-ศ 1ช่วง(1–3ชม.)/ครั้ง · ส-อ 2ชม./ครั้ง · รวม 6ชม./สัปดาห์/วง"}
             </div>
 
             <button className="modal-submit red" type="submit" disabled={submitting}>

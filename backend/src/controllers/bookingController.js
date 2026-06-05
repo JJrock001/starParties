@@ -82,10 +82,12 @@ const createBooking = async (req, res) => {
     if (daytimeSlots.length > 0) {
       const slotDay  = daytimeSlots[0].day;
       const isWknd   = WEEKEND_DAYS.has(slotDay);
-      const maxPerBk = isWknd ? 2 : 1;
+      const maxPerBk = isWknd ? 2 : 3;
       if (daytimeSlots.length > maxPerBk) {
         return res.status(400).json({
-          message: `${isWknd ? 'วันเสาร์-อาทิตย์' : 'วันธรรมดา'}จองได้สูงสุด ${maxPerBk} ช่วงเวลาต่อครั้ง`,
+          message: isWknd
+            ? 'วันเสาร์-อาทิตย์แต่ละช่วงเวลาจองได้สูงสุด 2 ชั่วโมง'
+            : 'วันธรรมดาจองได้ 1 ช่วงเวลาต่อครั้ง (สูงสุด 3 ชั่วโมงติดกัน)',
         });
       }
     }
