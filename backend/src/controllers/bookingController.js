@@ -30,35 +30,15 @@ const getNextWeekId = () => {
   return `${y}-W${String(weekNo).padStart(2, '0')}`;
 };
 
-// Auto-detect the correct active weekId from current time
-// Sunday 18:00+ → next week (booking for upcoming week)
-// Any other time → current week
-const getAutoWeekId = () => {
-  const now = new Date();
-  const day  = now.getUTCDay();
-  const mins = now.getUTCHours() * 60 + now.getUTCMinutes();
-  return (day === 0 && mins >= 18 * 60) ? getNextWeekId() : getCurrentWeekId();
-};
-
 const getOrCreateSettings = async () => {
-  const autoWeekId = getAutoWeekId();
-
   let s = await Settings.findOne({ key: 'booking' });
   if (!s) {
-    // First boot: start as buffet so slots are bookable immediately
-    s = await Settings.create({ key: 'booking', value: { weekId: autoWeekId, mode: 'buffet' } });
-    return s;
+    // First boot: use current week, free buffet
+    s = await Settings.create({
+      key: 'booking',
+      value: { weekId: getCurrentWeekId(), mode: 'buffet' },
+    });
   }
-
-  // weekId changed → new week started, clear old bookings
-  if (s.value.weekId !== autoWeekId) {
-    await Booking.deleteMany({ weekId: s.value.weekId });
-    s.value = { weekId: autoWeekId, mode: 'buffet' };
-    s.markModified('value');
-    await s.save();
-  }
-
-  // Mode is NOT auto-overridden — admin controls it manually via state1/state2
   return s;
 };
 
