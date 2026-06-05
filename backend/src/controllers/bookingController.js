@@ -150,7 +150,7 @@ const createBooking = async (req, res) => {
         });
       }
 
-      // Rule 5: Prime Time 18:00–21:00 — max 2h/day, no consecutive
+      // Rule 5: Prime Time 18:00–21:00 — consecutive block must not exceed 2h
       const newPrime = daytimeSlots.filter(s => PRIME_STARTS.has(s.start));
       if (newPrime.length > 0) {
         const existingPrime = await Booking.find({
@@ -163,15 +163,17 @@ const createBooking = async (req, res) => {
           ...newPrime.map(s => s.start),
         ]);
 
-        if (allPrime.size > 2) {
-          return res.status(400).json({
-            message: `วง "${finalBand}" ใช้โควตา Prime Time (18:00–21:00) เต็มแล้ว (สูงสุด 2 ชม./วัน)`,
-          });
+        // Find longest consecutive run in the Prime Time sequence
+        const seq = ['18:00', '19:00', '20:00'];
+        let maxRun = 0, run = 0;
+        for (const t of seq) {
+          run = allPrime.has(t) ? run + 1 : 0;
+          maxRun = Math.max(maxRun, run);
         }
-        if ((allPrime.has('18:00') && allPrime.has('19:00')) ||
-            (allPrime.has('19:00') && allPrime.has('20:00'))) {
+
+        if (maxRun > 2) {
           return res.status(400).json({
-            message: 'ห้ามจองช่วง Prime Time (18:00–21:00) ต่อเนื่องกัน — เว้นช่วงอย่างน้อย 1 สล็อต',
+            message: `วง "${finalBand}" จองช่วง Prime Time (18:00–21:00) ต่อเนื่องเกิน 2 ชั่วโมงไม่ได้`,
           });
         }
       }

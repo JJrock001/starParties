@@ -82,13 +82,8 @@ function daySlots(day: typeof DAYS[number]): { day: SlotDef[]; night: SlotDef[] 
 const slotLabel = (s: { start:string; end:string }) => `${s.start}–${s.end}`;
 
 const WEEKDAY_KEYS  = new Set(["mon","tue","wed","thu","fri"]);
-const PRIME_STARTS  = new Set(["18:00","19:00","20:00"]); // Prime Time 18:00–21:00
 const MAX_WDAY = 1; // max slots per booking on weekdays
 const MAX_WEND = 2; // max slots per booking on weekends
-
-function isPrimeSlot(slot: SlotDef) {
-  return !slot.night && PRIME_STARTS.has(slot.start);
-}
 
 // Deterministic color per band name
 const BAND_COLORS = [
@@ -728,17 +723,9 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
       return;
     }
 
-    // Must be adjacent to extend
+    // Must be adjacent to extend; otherwise start a new selection
     const edges = getChainEdges(selected, flatSlots);
     if (edges && (slot.end === flatSlots[edges.headId].start || slot.start === flatSlots[edges.tailId].end)) {
-      // Rule 5: Prime Time consecutive block (any day)
-      const adjSlot = slot.end === flatSlots[edges.headId].start
-        ? flatSlots[edges.headId]
-        : flatSlots[edges.tailId];
-      if (isPrimeSlot(slot) && isPrimeSlot(adjSlot)) {
-        setError("ช่วง Prime Time (18:00–21:00) ห้ามจองสล็อตต่อเนื่องกัน");
-        return;
-      }
       setSelected([...selected, slot.id]);
     } else {
       setSelected([slot.id]);
