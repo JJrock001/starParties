@@ -72,12 +72,17 @@ const DAYS = [
 ];
 
 interface SlotDef { id: string; day: string; start: string; end: string; night: boolean; }
-function daySlots(day: typeof DAYS[number]): { day: SlotDef[]; night: SlotDef[] } {
+function daySlots(day: typeof DAYS[number]): { night_early: SlotDef[]; day: SlotDef[]; night_late: SlotDef[] } {
   const dayArr   = day.wk ? WEEKEND_DAY   : WEEKDAY_DAY;
   const nightArr = day.wk ? WEEKEND_NIGHT : WEEKDAY_NIGHT;
   const mk = (arr: readonly (readonly [string,string])[], isNight: boolean): SlotDef[] =>
     arr.map(([s,e]) => ({ id:`${day.key}__${s}`, day: day.key, start:s, end:e, night: isNight }));
-  return { day: mk(dayArr, false), night: mk(nightArr, true) };
+
+  // Split night: early (00:00-06:00) and late (23:00-00:00)
+  const nightEarly = mk(nightArr.slice(0, -1), true); // all except last
+  const nightLate = mk([nightArr[nightArr.length - 1]], true); // last one (23:00-00:00)
+
+  return { night_early: nightEarly, day: mk(dayArr, false), night_late: nightLate };
 }
 const slotLabel = (s: { start:string; end:string }) => `${s.start}–${s.end}`;
 
@@ -674,13 +679,24 @@ function DayRow({ day, bookings, selected, weekId, onPick }: {
         <span className="dl-th">{day.th}</span>
       </div>
       <div className="day-slots">
+        {/* Night early: 00:00-06:00 */}
         <div className="slot-group">
-          {s.night.map(slot => <SlotChip key={slot.id} slot={slot} bookings={bookings} selected={selected} weekId={weekId} onPick={onPick}/>)}
+          {s.night_early.map(slot => <SlotChip key={slot.id} slot={slot} bookings={bookings} selected={selected} weekId={weekId} onPick={onPick}/>)}
         </div>
         <div className="night-sep">ลางวัน · ปกติ</div>
+        {/* Day: 08:00+ */}
         <div className="slot-group">
           {s.day.map(slot => <SlotChip key={slot.id} slot={slot} bookings={bookings} selected={selected} weekId={weekId} onPick={onPick}/>)}
         </div>
+        {/* Night late: 23:00-00:00 */}
+        {s.night_late.length > 0 && (
+          <>
+            <div className="night-sep">หลังเที่ยงคืน · FREE</div>
+            <div className="slot-group">
+              {s.night_late.map(slot => <SlotChip key={slot.id} slot={slot} bookings={bookings} selected={selected} weekId={weekId} onPick={onPick}/>)}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
