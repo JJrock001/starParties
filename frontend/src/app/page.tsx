@@ -112,13 +112,17 @@ function weekIdToMonday(weekId: string): Date {
   return result;
 }
 
+const TZ_OFFSET = 7; // Bangkok UTC+7
+
 function isSlotPast(weekId: string, slot: SlotDef): boolean {
   if (!weekId) return false;
   const monday = weekIdToMonday(weekId);
   const slotDate = new Date(monday);
   slotDate.setUTCDate(monday.getUTCDate() + (DAY_OFFSET[slot.day] ?? 0));
   const [h, m] = slot.start.split(':').map(Number);
-  slotDate.setUTCHours(h, m, 0, 0);
+  // Slot times are Bangkok (UTC+7) → convert to UTC by subtracting 7h
+  // setUTCHours handles negative values and wraps to previous day correctly
+  slotDate.setUTCHours(h - TZ_OFFSET, m, 0, 0);
   return slotDate < new Date();
 }
 
