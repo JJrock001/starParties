@@ -915,10 +915,10 @@ function TestPanel({ mode, bookingCount, onStateChange }: {
           </span>
         </div>
         <button className="tp-btn r" onClick={() => trigger("state1")} disabled={loading}>
-          STATE 1 — Sunday 18:00<small>Weekly reset · เปิดตารางใหม่ + โควตา</small>
+          STATE 1 — อาทิตย์ 18:00<small>เปิดจองสัปดาห์ถัดไป · Launch Mode มีกฎครบ</small>
         </button>
         <button className="tp-btn b" onClick={() => trigger("state2")} disabled={loading}>
-          STATE 2 — Sunday 23:59<small>Buffet mode · ปลดล็อกโควตา</small>
+          STATE 2 — อาทิตย์ 23:59<small>Free Buffet · ไม่มีกฎ จองได้อิสระ</small>
         </button>
         <div className="tp-meta">
           <span>จองแล้ว {bookingCount} สล็อต</span>

@@ -4,6 +4,7 @@ const Settings = require('../models/Settings');
 
 // ─── Week helpers ────────────────────────────────────────────
 
+// weekId of the current week (used for initial settings creation)
 const getCurrentWeekId = () => {
   const d = new Date();
   const dayOfWeek = d.getUTCDay();
@@ -12,6 +13,20 @@ const getCurrentWeekId = () => {
   const y = monday.getUTCFullYear();
   const jan1 = new Date(Date.UTC(y, 0, 1));
   const weekNo = Math.ceil(((monday - jan1) / 86400000 + 1) / 7);
+  return `${y}-W${String(weekNo).padStart(2, '0')}`;
+};
+
+// weekId of the NEXT week — used when resetting on Sunday 18:00
+// because the schedule being opened is for the upcoming week
+const getNextWeekId = () => {
+  const d = new Date();
+  const dayOfWeek = d.getUTCDay(); // 0=Sun
+  const daysUntilNextMon = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+  const nextMonday = new Date(d);
+  nextMonday.setUTCDate(d.getUTCDate() + daysUntilNextMon);
+  const y = nextMonday.getUTCFullYear();
+  const jan1 = new Date(Date.UTC(y, 0, 1));
+  const weekNo = Math.ceil(((nextMonday - jan1) / 86400000 + 1) / 7);
   return `${y}-W${String(weekNo).padStart(2, '0')}`;
 };
 
@@ -215,7 +230,8 @@ const setMode = async (req, res) => {
     const settings  = await getOrCreateSettings();
 
     if (state === 'state1') {
-      const weekId = getCurrentWeekId();
+      // Open NEXT week's schedule (Sunday 18:00 reset)
+      const weekId = getNextWeekId();
       await Booking.deleteMany({ weekId: settings.value.weekId });
       settings.value = { weekId, mode: 'launch' };
       settings.markModified('value');
