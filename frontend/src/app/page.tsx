@@ -756,9 +756,6 @@ function BookingModal({ onClose, bookings, mode, weekId, onRefresh }: {
     if (bookings[slot.id] || isSlotPast(weekId, slot)) return;
     setError(null);
 
-    const isWeekday = WEEKDAY_KEYS.has(slot.day);
-    const maxSlots  = isWeekday ? MAX_WDAY : MAX_WEND;
-
     if (selected.length === 0) { setSelected([slot.id]); return; }
 
     // Different day → reset
@@ -775,20 +772,24 @@ function BookingModal({ onClose, bookings, mode, weekId, onRefresh }: {
       return;
     }
 
-    // Max slots per booking (daytime only)
-    const currentDay = selected.filter(id => !flatSlots[id].night).length;
-    if (!slot.night && currentDay >= maxSlots) {
-      setError(isWeekday
-        ? "วันธรรมดาจองได้ 1 ช่วงต่อครั้ง (สูงสุด 3 ชม.ติดกัน)"
-        : "วันเสาร์-อาทิตย์แต่ละช่วงเวลาจองได้สูงสุด 2 ชม.");
-      return;
+    // Launch mode: enforce slot limits; Buffet mode: no limits
+    if (mode === 'launch' && !slot.night) {
+      const isWeekday = WEEKDAY_KEYS.has(slot.day);
+      const maxSlots  = isWeekday ? MAX_WDAY : MAX_WEND;
+      const currentDay = selected.filter(id => !flatSlots[id].night).length;
+      if (currentDay >= maxSlots) {
+        setError(isWeekday
+          ? "วันธรรมดาจองได้ 1 ช่วงต่อครั้ง (สูงสุด 3 ชม.ติดกัน)"
+          : "วันเสาร์-อาทิตย์แต่ละช่วงเวลาจองได้สูงสุด 2 ชม.");
+        return;
+      }
     }
 
     // Must be adjacent to extend; otherwise start a new selection
     const edges = getChainEdges(selected, flatSlots);
     if (edges && (slot.end === flatSlots[edges.headId].start || slot.start === flatSlots[edges.tailId].end)) {
-      // Prime Time: block if consecutive Prime Time run would exceed 2h
-      if (maxPrimeRun([...selected, slot.id], flatSlots) > 2) {
+      // Launch mode: check Prime Time rule; Buffet mode: no limits
+      if (mode === 'launch' && maxPrimeRun([...selected, slot.id], flatSlots) > 2) {
         setError("Prime Time (18:00–21:00) ห้ามจองต่อเนื่องเกิน 2 ชั่วโมง");
         return;
       }
