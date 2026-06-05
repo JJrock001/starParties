@@ -127,7 +127,8 @@ const PRIME_SET = new Set(PRIME_SEQ);
 
 // Count longest consecutive Prime Time run in a set of slot ids
 function maxPrimeRun(ids: string[], slots: Record<string, SlotDef>): number {
-  const booked = new Set(ids.filter(id => !slots[id].night && PRIME_SET.has(slots[id].start)).map(id => slots[id].start));
+  const primeIds = ids.filter(id => !slots[id].night && PRIME_SET.has(slots[id].start as typeof PRIME_SEQ[number]));
+  const booked = new Set<string>(primeIds.map(id => slots[id].start));
   let max = 0, run = 0;
   for (const t of PRIME_SEQ) { run = booked.has(t) ? run + 1 : 0; max = Math.max(max, run); }
   return max;
@@ -750,7 +751,7 @@ function BookingModal({ onClose, bookings, mode, weekId, onRefresh }: {
 
   // Build flat slot map for picking
   const flatSlots: Record<string, SlotDef> = {};
-  DAYS.forEach(d => { const s = daySlots(d); [...s.day,...s.night].forEach(x => { flatSlots[x.id]=x; }); });
+  DAYS.forEach(d => { const s = daySlots(d); [...s.night_early,...s.day,...s.night_late].forEach(x => { flatSlots[x.id]=x; }); });
 
   function pickSlot(slot: SlotDef) {
     if (bookings[slot.id] || isSlotPast(weekId, slot)) return;
