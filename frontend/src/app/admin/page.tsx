@@ -97,6 +97,9 @@ const WEND_SLOTS = ["08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:
 const WDAY_NIGHT = new Set(["23:00","00:00","01:00","02:00","03:00","04:00","05:00"]);
 const WEND_NIGHT = new Set(["00:00","01:00","02:00","03:00","04:00","05:00"]);
 
+const isNightSlot = (day: string, start: string) =>
+  WEND_KEYS.includes(day) ? WEND_NIGHT.has(start) : WDAY_NIGHT.has(start);
+
 const TT_COLORS = ["#E04E38","#E8734A","#E8A030","#C8B820","#5AAA60",
                    "#3AACAC","#4690D5","#7868C8","#C050A0","#D4785A"];
 function ttBandColor(band: string) {
@@ -122,18 +125,16 @@ function nextHour(t: string) {
 function BookingEditorPanel({ token, weekId, editor, onDone }: {
   token: string; weekId: string; editor: EditorState; onDone: () => void;
 }) {
-  const isCreate  = editor?.mode === "create";
-  const existingBk = editor?.mode === "edit" ? editor.bk : null;
-
-  const [band, setBand]   = useState("");
-  const [sids, setSids]   = useState<string[]>([""]);
+  const [band, setBand]     = useState("");
+  const [sids, setSids]     = useState<string[]>([""]);
   const [lookup, setLookup] = useState<Record<string, string | null | "loading">>({});
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState<string | null>(null);
 
   useEffect(() => {
-    setBand(existingBk?.band ?? "");
-    setSids(existingBk ? existingBk.members.map(m => m.sid) : [""]);
+    const bk = editor?.mode === "edit" ? editor.bk : null;
+    setBand(bk?.band ?? "");
+    setSids(bk ? bk.members.map(m => m.sid) : [""]);
     setLookup({});
     setError(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,9 +156,9 @@ function BookingEditorPanel({ token, weekId, editor, onDone }: {
     setSaving(true); setError(null);
     try {
       const validSids = sids.filter(s => /^\d{10}$/.test(s.trim()));
-      let res: Response;
-      if (isCreate && editor?.mode === "create") {
-        res = await api(token, "/bookings", {
+
+      if (editor?.mode === "create") {
+        const res = await api(token, "/bookings", {
           method: "POST",
           body: JSON.stringify({
             slotId: `${editor.day}__${editor.start}`,
@@ -166,39 +167,82 @@ function BookingEditorPanel({ token, weekId, editor, onDone }: {
             band, members: validSids,
           }),
         });
-      } else {
-        res = await api(token, `/bookings/${existingBk!._id}`, {
+        if (!res.ok) { setError((await res.json()).message || "เกิดข้อผิดพลาด"); return; }
+
+      } else if (editor?.mode === "create-multi") {
+        // Create one booking per selected slot
+        for (const s of editor.slots) {
+          const night = isNightSlot(s.day, s.start);
+          const end   = nextHour(s.start);
+          const res = await api(token, "/bookings", {
+            method: "POST",
+            body: JSON.stringify({
+              slotId: `${s.day}__${s.start}`,
+              weekId: editor.weekId, day: s.day,
+              start: s.start, end, night, band, members: validSids,
+            }),
+          });
+          if (!res.ok) {
+            setError(`${DAY_EN[s.day]} ${s.start}: ${(await res.json()).message}`);
+            return;
+          }
+        }
+
+      } else if (editor?.mode === "edit") {
+        const res = await api(token, `/bookings/${editor.bk._id}`, {
           method: "PATCH",
           body: JSON.stringify({ band, members: validSids }),
         });
+        if (!res.ok) { setError((await res.json()).message || "เกิดข้อผิดพลาด"); return; }
       }
-      if (!res.ok) { setError((await res.json()).message || "เกิดข้อผิดพลาด"); return; }
+
       onDone();
     } catch { setError("Network error"); }
     finally { setSaving(false); }
   }
 
   async function del() {
-    if (!existingBk || !confirm("ลบการจองนี้?")) return;
-    await api(token, `/bookings/${existingBk._id}`, { method: "DELETE" });
+    if (editor?.mode !== "edit" || !confirm("ลบการจองนี้?")) return;
+    await api(token, `/bookings/${editor.bk._id}`, { method: "DELETE" });
     onDone();
   }
 
   if (!editor) return null;
 
-  const info = editor.mode === "create"
-    ? { day: editor.day, start: editor.start, end: editor.end, night: editor.night }
-    : { day: existingBk!.day, start: existingBk!.start, end: existingBk!.end, night: existingBk!.night };
+  // Header info per mode
+  const headInfo = () => {
+    if (editor.mode === "create") return (
+      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+        <b style={{ fontFamily:"var(--font-en)" }}>{DAY_EN[editor.day]} {DAY_TH[editor.day]}</b>
+        <span style={{ fontFamily:"var(--font-en)" }}>{editor.start}–{editor.end}</span>
+        <span className={"adm-pill " + (editor.night ? "night" : "day")}>{editor.night ? "NIGHT·FREE" : "DAY"}</span>
+      </div>
+    );
+    if (editor.mode === "create-multi") return (
+      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+        <span style={{ fontFamily:"var(--font-en)", fontWeight:700, color:"var(--red)" }}>{editor.slots.length} SLOTS</span>
+        {editor.slots.map(s => (
+          <span key={s.day+s.start} style={{ fontFamily:"var(--font-en)", fontSize:11, padding:"2px 6px",
+            border:"1px solid #000", background: isNightSlot(s.day,s.start) ? "#eaeaf4" : "#fff" }}>
+            {DAY_EN[s.day]} {s.start}
+          </span>
+        ))}
+      </div>
+    );
+    return (
+      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+        <b style={{ fontFamily:"var(--font-en)" }}>{DAY_EN[editor.bk.day]} {DAY_TH[editor.bk.day]}</b>
+        <span style={{ fontFamily:"var(--font-en)" }}>{editor.bk.start}–{editor.bk.end}</span>
+        <span className={"adm-pill " + (editor.bk.night ? "night" : "day")}>{editor.bk.night ? "NIGHT·FREE" : "DAY"}</span>
+      </div>
+    );
+  };
 
   return (
     <div className="tt-editor">
       <div className="tt-editor-head">
-        <span>{isCreate ? "✦ จองใหม่" : "✎ แก้ไขการจอง"}</span>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <b style={{ fontFamily:"var(--font-en)" }}>{DAY_EN[info.day]} {DAY_TH[info.day]}</b>
-          <span style={{ fontFamily:"var(--font-en)" }}>{info.start}–{info.end}</span>
-          <span className={"adm-pill " + (info.night ? "night" : "day")}>{info.night ? "NIGHT·FREE" : "DAY"}</span>
-        </div>
+        <span>{editor.mode === "edit" ? "✎ แก้ไขการจอง" : "✦ จองใหม่"}</span>
+        {headInfo()}
         <button className="adm-btn cancel" style={{ marginLeft:"auto" }} onClick={onDone}>✕ ปิด</button>
       </div>
 
@@ -216,7 +260,7 @@ function BookingEditorPanel({ token, weekId, editor, onDone }: {
           <label>สมาชิก · MEMBER STUDENT IDs</label>
           <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
             {sids.map((sid, i) => {
-              const v = /^\d{10}$/.test(sid);
+              const v    = /^\d{10}$/.test(sid);
               const info = sid ? lookup[sid] : undefined;
               return (
                 <div key={i} style={{ display:"grid", gridTemplateColumns:"30px 1fr 1fr 34px", gap:6, alignItems:"stretch" }}>
@@ -252,8 +296,8 @@ function BookingEditorPanel({ token, weekId, editor, onDone }: {
       </div>
 
       <div className="tt-editor-foot">
-        <button className="adm-btn save"   onClick={save} disabled={saving}>{saving ? "..." : "บันทึก"}</button>
-        {existingBk && <button className="adm-btn del" onClick={del}>ลบการจอง</button>}
+        <button className="adm-btn save" onClick={save} disabled={saving}>{saving ? "..." : "บันทึก"}</button>
+        {editor.mode === "edit" && <button className="adm-btn del" onClick={del}>ลบการจอง</button>}
         <button className="adm-btn cancel" onClick={onDone}>ยกเลิก</button>
       </div>
     </div>
