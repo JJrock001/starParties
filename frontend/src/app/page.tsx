@@ -87,14 +87,24 @@ const MAX_WEND = 3; // weekend: each block up to 3h consecutive (can make 2 book
 
 const DAY_OFFSET: Record<string,number> = { mon:0, tue:1, wed:2, thu:3, fri:4, sat:5, sun:6 };
 
+// ISO 8601 week: find Monday of week N
+// Week 1 = week containing Jan 4
 function weekIdToMonday(weekId: string): Date {
   const [yearStr, weekStr] = weekId.split('-W');
   const year = parseInt(yearStr), week = parseInt(weekStr);
+
   const jan4 = new Date(Date.UTC(year, 0, 4));
-  const jan4Day = (jan4.getUTCDay() + 6) % 7;
-  const monday = new Date(jan4);
-  monday.setUTCDate(jan4.getUTCDate() - jan4Day + (week - 1) * 7);
-  return monday;
+  const jan4Day = jan4.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+
+  // Monday of the week containing Jan 4
+  const daysToMonday = (1 - jan4Day + 7) % 7;
+  const week1Monday = new Date(jan4);
+  week1Monday.setUTCDate(4 + daysToMonday);
+
+  // Monday of week N
+  const result = new Date(week1Monday);
+  result.setUTCDate(week1Monday.getUTCDate() + (week - 1) * 7);
+  return result;
 }
 
 function isSlotPast(weekId: string, slot: SlotDef): boolean {

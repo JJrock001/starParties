@@ -30,30 +30,45 @@ const getNextWeekId = () => {
   return `${y}-W${String(weekNo).padStart(2, '0')}`;
 };
 
-// Auto-detect mode: launch only during Sunday 18:00–23:59, otherwise buffet
-const getAutoMode = () => {
+// Auto-detect correct weekId + mode from current time
+// Sunday 18:00–23:59 UTC → launch for next week
+// Any other time        → buffet for current week
+const getAutoWeekAndMode = () => {
   const now = new Date();
-  const day = now.getUTCDay();           // 0 = Sunday
+  const day  = now.getUTCDay();
   const mins = now.getUTCHours() * 60 + now.getUTCMinutes();
-  return (day === 0 && mins >= 18 * 60) ? 'launch' : 'buffet';
+  const isSundayLaunch = day === 0 && mins >= 18 * 60;
+  return {
+    weekId: isSundayLaunch ? getNextWeekId() : getCurrentWeekId(),
+    mode:   isSundayLaunch ? 'launch' : 'buffet',
+  };
 };
 
 const getOrCreateSettings = async () => {
-  const autoMode = getAutoMode();
+  const { weekId: autoWeekId, mode: autoMode } = getAutoWeekAndMode();
+
   let s = await Settings.findOne({ key: 'booking' });
   if (!s) {
-    s = await Settings.create({
-      key: 'booking',
-      value: { weekId: getCurrentWeekId(), mode: autoMode },
-    });
+    s = await Settings.create({ key: 'booking', value: { weekId: autoWeekId, mode: autoMode } });
     return s;
   }
-  // Auto-update mode if it doesn't match current time
+
+  // weekId changed → new week started, clear old bookings
+  if (s.value.weekId !== autoWeekId) {
+    await Booking.deleteMany({ weekId: s.value.weekId });
+    s.value = { weekId: autoWeekId, mode: autoMode };
+    s.markModified('value');
+    await s.save();
+    return s;
+  }
+
+  // Same week but mode needs updating
   if (s.value.mode !== autoMode) {
     s.value = { ...s.value, mode: autoMode };
     s.markModified('value');
     await s.save();
   }
+
   return s;
 };
 
@@ -61,15 +76,24 @@ const getOrCreateSettings = async () => {
 
 const DAY_OFFSET = { mon:0, tue:1, wed:2, thu:3, fri:4, sat:5, sun:6 };
 
+// ISO 8601 week: find Monday of week N
+// Week 1 = week containing Jan 4
 const weekIdToMonday = (weekId) => {
   const [yearStr, weekStr] = weekId.split('-W');
   const year = parseInt(yearStr);
   const week = parseInt(weekStr);
   const jan4 = new Date(Date.UTC(year, 0, 4));
-  const jan4Day = (jan4.getUTCDay() + 6) % 7; // Mon=0
-  const monday = new Date(jan4);
-  monday.setUTCDate(jan4.getUTCDate() - jan4Day + (week - 1) * 7);
-  return monday;
+  const jan4Day = jan4.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+
+  // Monday of the week containing Jan 4
+  const daysToMonday = (1 - jan4Day + 7) % 7;
+  const week1Monday = new Date(jan4);
+  week1Monday.setUTCDate(4 + daysToMonday);
+
+  // Monday of week N
+  const result = new Date(week1Monday);
+  result.setUTCDate(week1Monday.getUTCDate() + (week - 1) * 7);
+  return result;
 };
 
 const isSlotPast = (weekId, day, start) => {
