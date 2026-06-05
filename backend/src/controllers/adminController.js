@@ -1,6 +1,7 @@
 const Booking  = require('../models/Booking');
 const Member   = require('../models/Member');
 const Activity = require('../models/Activity');
+const Settings = require('../models/Settings');
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN    || 'sp-admin-tok';
 const ADMIN_USER  = process.env.ADMIN_USERNAME || 'admin';
@@ -19,6 +20,12 @@ const login = (req, res) => {
 const getWeeks = async (req, res) => {
   try {
     const weeks = await Booking.distinct('weekId');
+    // Always include the active weekId from settings (even if no bookings yet)
+    const settings = await Settings.findOne({ key: 'booking' });
+    const activeWeekId = settings?.value?.weekId;
+    if (activeWeekId && !weeks.includes(activeWeekId)) {
+      weeks.push(activeWeekId);
+    }
     return res.json({ weeks: weeks.sort().reverse() });
   } catch (e) {
     return res.status(500).json({ message: e.message });
