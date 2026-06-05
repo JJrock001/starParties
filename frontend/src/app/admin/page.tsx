@@ -109,6 +109,7 @@ type SlotMap = Record<string, Record<string, AdminBooking>>;
 
 type EditorState =
   | { mode: "create"; day: string; start: string; end: string; night: boolean }
+  | { mode: "create-multi"; slots: { day: string; start: string }[]; weekId: string }
   | { mode: "edit";   bk: AdminBooking }
   | null;
 
@@ -261,11 +262,13 @@ function BookingEditorPanel({ token, weekId, editor, onDone }: {
 
 // ─── Timetable Grid ──────────────────────────────────────────
 
-function TimetableGrid({ days, slots, nightSet, slotMap, onSelectSlot, onEdit }: {
+function TimetableGrid({ days, slots, nightSet, slotMap, onSelectSlot, onEdit, selected, onToggleSelected }: {
   days: string[]; slots: string[]; nightSet: Set<string>;
   slotMap: SlotMap;
   onSelectSlot: (day: string, start: string, night: boolean) => void;
   onEdit: (b: AdminBooking) => void;
+  selected?: Set<string>;
+  onToggleSelected?: (slotId: string) => void;
 }) {
   return (
     <div className="tt-grid" style={{ gridTemplateColumns: `54px repeat(${days.length}, 1fr)` }}>
@@ -282,10 +285,20 @@ function TimetableGrid({ days, slots, nightSet, slotMap, onSelectSlot, onEdit }:
           {days.map(day => {
             const bk = slotMap[day]?.[time];
             const isNight = nightSet.has(time);
+            const slotId = `${day}__${time}`;
+            const isSelected = selected?.has(slotId);
             return (
               <div key={day + time}
-                className={"tt-cell" + (isNight ? " night" : "") + (bk ? " booked" : " empty")}
-                onClick={() => { if (!bk) onSelectSlot(day, time, isNight); }}>
+                className={"tt-cell" + (isNight ? " night" : "") + (bk ? " booked" : " empty") + (isSelected ? " selected" : "")}
+                onClick={(e) => {
+                  if (!bk) {
+                    if (e.shiftKey && onToggleSelected) {
+                      onToggleSelected(slotId);
+                    } else {
+                      onSelectSlot(day, time, isNight);
+                    }
+                  }
+                }}>
                 {bk ? (
                   <div className="tt-bk" style={{ background: ttBandColor(bk.band) }}>
                     <div className="tt-bk-band">{bk.band}</div>
@@ -297,7 +310,7 @@ function TimetableGrid({ days, slots, nightSet, slotMap, onSelectSlot, onEdit }:
                     </div>
                   </div>
                 ) : (
-                  <div className="tt-empty-hint">+</div>
+                  <div className="tt-empty-hint">{isSelected ? "✓" : "+"}</div>
                 )}
               </div>
             );
@@ -348,7 +361,22 @@ function ReservationsTab({ token }: { token: string }) {
           {weeks.map(w => <option key={w} value={w}>{w}</option>)}
         </select>
         <span className="adm-count">{bookings.length} การจอง</span>
-        <span className="adm-count" style={{ color:"#aaa" }}>คลิกช่องว่าง = จองใหม่ · คลิก ✎ = แก้ไข</span>
+        <span className="adm-count" style={{ color:"#aaa" }}>คลิก = จองใหม่ · Shift+คลิก = เลือกหลาย · คลิก ✎ = แก้ไข</span>
+        {selected.size > 0 && (
+          <>
+            <span className="adm-count" style={{ color: "var(--red)", fontWeight: 700 }}>เลือก {selected.size} ช่อง</span>
+            <button className="adm-quick-btn" onClick={() => {
+              const slots = Array.from(selected).map(id => {
+                const [day, start] = id.split("__");
+                return { day, start };
+              });
+              if (slots.length > 0) {
+                setEditor({ mode: "create-multi", slots, weekId });
+              }
+            }}>สร้างจองหลาย</button>
+            <button className="adm-quick-btn cancel" onClick={() => setSelected(new Set())}>ยกเลิก</button>
+          </>
+        )}
       </div>
 
       <BookingEditorPanel
@@ -360,14 +388,18 @@ function ReservationsTab({ token }: { token: string }) {
       <div className="tt-wrap">
         <TimetableGrid days={WDAY_KEYS} slots={WDAY_SLOTS} nightSet={WDAY_NIGHT} slotMap={slotMap}
           onSelectSlot={(day, start, night) => setEditor({ mode:"create", day, start, end: nextHour(start), night })}
-          onEdit={bk => setEditor({ mode:"edit", bk })}/>
+          onEdit={bk => setEditor({ mode:"edit", bk })}
+          selected={selected}
+          onToggleSelected={(slotId) => { const s = new Set(selected); if (s.has(slotId)) s.delete(slotId); else s.add(slotId); setSelected(s); }}/>
       </div>
 
       <div className="tt-section-label">WEEKENDS · เสาร์–อาทิตย์<span>08:00–06:00 · Night FREE</span></div>
       <div className="tt-wrap">
         <TimetableGrid days={WEND_KEYS} slots={WEND_SLOTS} nightSet={WEND_NIGHT} slotMap={slotMap}
           onSelectSlot={(day, start, night) => setEditor({ mode:"create", day, start, end: nextHour(start), night })}
-          onEdit={bk => setEditor({ mode:"edit", bk })}/>
+          onEdit={bk => setEditor({ mode:"edit", bk })}
+          selected={selected}
+          onToggleSelected={(slotId) => { const s = new Set(selected); if (s.has(slotId)) s.delete(slotId); else s.add(slotId); setSelected(s); }}/>
       </div>
     </div>
   );
