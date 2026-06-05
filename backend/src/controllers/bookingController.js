@@ -272,13 +272,12 @@ const setMode = async (req, res) => {
     const settings  = await getOrCreateSettings();
 
     if (state === 'state1') {
-      // Open NEXT week's schedule (Sunday 18:00 reset)
-      const weekId = getNextWeekId();
-      await Booking.deleteMany({ weekId: settings.value.weekId });
-      settings.value = { weekId, mode: 'launch' };
+      // Open Week — enable rules, keep same weekId
+      settings.value = { ...settings.value, mode: 'launch' };
       settings.markModified('value');
       await settings.save();
     } else if (state === 'state2') {
+      // Free Buffet — disable rules, keep same weekId
       settings.value = { ...settings.value, mode: 'buffet' };
       settings.markModified('value');
       await settings.save();

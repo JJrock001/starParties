@@ -832,10 +832,8 @@ export default function AdminPage() {
           <span className={`adm-mode-badge ${mode}`}>
             {mode === "launch" ? "⚡ OPEN WEEK · มีกฎ" : "🎉 FREE BUFFET · ไม่มีกฎ"}
           </span>
-          <button className="adm-mode-btn" onClick={() => {
-            if (!confirm("เปิดตารางสัปดาห์ถัดไป (Open Week)?\nจะล้างการจองสัปดาห์ปัจจุบันทั้งหมด")) return;
-            setModeAPI("state1");
-          }} disabled={modeLoading} title="อาทิตย์ 18:00 — เปิดจองสัปดาห์ใหม่ มีกฎโควตาครบ">
+          <button className="adm-mode-btn" onClick={() => setModeAPI("state1")}
+            disabled={modeLoading} title="เปิดกฎโควตา / Prime Time ทั้งหมด">
             🔓 Open Week
           </button>
           <button className="adm-mode-btn" onClick={() => setModeAPI("state2")} disabled={modeLoading}
