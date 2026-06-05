@@ -840,6 +840,11 @@ export default function AdminPage() {
             title="อาทิตย์ 23:59 — ปลดล็อกทุกโควตา">
             🎉 Free Buffet
           </button>
+          <button className="adm-mode-btn" style={{ borderColor: "#aaa", color: "#aaa" }}
+            onClick={() => { if (confirm("Reset weekId กลับมาสัปดาห์ปัจจุบัน?")) setModeAPI("reset" as "state1"); }}
+            disabled={modeLoading} title="ย้อนกลับมา weekId สัปดาห์นี้">
+            ↩ Reset Week
+          </button>
         </div>
         <button className="adm-logout" onClick={logout}>LOGOUT</button>
       </div>

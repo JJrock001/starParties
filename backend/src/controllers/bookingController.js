@@ -281,8 +281,13 @@ const setMode = async (req, res) => {
       settings.value = { ...settings.value, mode: 'buffet' };
       settings.markModified('value');
       await settings.save();
+    } else if (state === 'reset') {
+      // Reset weekId back to current week, keep mode
+      settings.value = { ...settings.value, weekId: getCurrentWeekId() };
+      settings.markModified('value');
+      await settings.save();
     } else {
-      return res.status(400).json({ message: 'Invalid state. Use state1 or state2.' });
+      return res.status(400).json({ message: 'Invalid state.' });
     }
 
     return res.status(200).json(settings.value);
