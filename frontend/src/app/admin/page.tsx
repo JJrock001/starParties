@@ -832,15 +832,15 @@ export default function AdminPage() {
         <span className="adm-title">★ STARPARTY<span className="adm-badge-pill">ADMIN</span></span>
         <div className="adm-mode-controls">
           <span className={`adm-mode-badge ${mode}`}>
-            {mode === "launch" ? "⚡ OPEN WEEK · มีกฎ" : "🎉 FREE BUFFET · ไม่มีกฎ"}
+            {mode === "launch" ? "⚡ LAUNCH MODE" : "🎉 FREE BUFFET MODE"}
           </span>
           <button className="adm-mode-btn" onClick={() => setModeAPI("state1")}
             disabled={modeLoading} title="เปิดกฎโควตา / Prime Time ทั้งหมด">
-            🔓 Open Week
+            ⚡ Launch Mode
           </button>
           <button className="adm-mode-btn" onClick={() => setModeAPI("state2")} disabled={modeLoading}
-            title="อาทิตย์ 23:59 — ปลดล็อกทุกโควตา">
-            🎉 Free Buffet
+            title="ปลดล็อกทุกโควตา">
+            🎉 Free Buffet Mode
           </button>
           <button className="adm-mode-btn" style={{ borderColor: "#aaa", color: "#aaa" }}
             onClick={() => { if (confirm("Reset weekId กลับมาสัปดาห์ปัจจุบัน?")) setModeAPI("reset" as "state1"); }}

@@ -965,16 +965,16 @@ function TestPanel({ mode, bookingCount, onStateChange }: {
       </div>
       <div className="tp-body">
         <div className="tp-state">
-          <span className="tp-k">MODE</span>
+          <span className="tp-k">MODE ปัจจุบัน</span>
           <span className={"tp-badge " + (mode === "buffet" ? "b" : "r")}>
-            {mode === "buffet" ? "FREE BUFFET · ปลดล็อก" : "LAUNCH · จ-ศ 1ช่วง · ส-อ 2ช่วง"}
+            {mode === "buffet" ? "🎉 FREE BUFFET MODE" : "⚡ LAUNCH MODE"}
           </span>
         </div>
         <button className="tp-btn r" onClick={() => trigger("state1")} disabled={loading}>
-          STATE 1 — อาทิตย์ 18:00<small>เปิดจองสัปดาห์ถัดไป · Launch Mode มีกฎครบ</small>
+          ⚡ Launch Mode<small>มีกฎโควตา · Prime Time · ทุกข้อบังคับ</small>
         </button>
         <button className="tp-btn b" onClick={() => trigger("state2")} disabled={loading}>
-          STATE 2 — อาทิตย์ 23:59<small>Free Buffet · ไม่มีกฎ จองได้อิสระ</small>
+          🎉 Free Buffet Mode<small>ไม่มีกฎ · จองได้อิสระ · ซ้อมส่วนตัวได้</small>
         </button>
         <div className="tp-meta">
           <span>จองแล้ว {bookingCount} สล็อต</span>
