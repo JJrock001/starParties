@@ -675,11 +675,11 @@ function DayRow({ day, bookings, selected, weekId, onPick }: {
       </div>
       <div className="day-slots">
         <div className="slot-group">
-          {s.day.map(slot => <SlotChip key={slot.id} slot={slot} bookings={bookings} selected={selected} weekId={weekId} onPick={onPick}/>)}
-        </div>
-        <div className="night-sep">หลังเที่ยงคืน · FREE</div>
-        <div className="slot-group">
           {s.night.map(slot => <SlotChip key={slot.id} slot={slot} bookings={bookings} selected={selected} weekId={weekId} onPick={onPick}/>)}
+        </div>
+        <div className="night-sep">ลางวัน · ปกติ</div>
+        <div className="slot-group">
+          {s.day.map(slot => <SlotChip key={slot.id} slot={slot} bookings={bookings} selected={selected} weekId={weekId} onPick={onPick}/>)}
         </div>
       </div>
     </div>
