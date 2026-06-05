@@ -1,6 +1,8 @@
-const Booking = require('../models/Booking');
-const Member = require('../models/Member');
+const Booking  = require('../models/Booking');
+const Member   = require('../models/Member');
 const Settings = require('../models/Settings');
+
+// ─── Week helpers ────────────────────────────────────────────
 
 const getCurrentWeekId = () => {
   const d = new Date();
@@ -24,17 +26,14 @@ const getOrCreateSettings = async () => {
   return s;
 };
 
-const WEEKEND_DAYS = new Set(['sat', 'sun']);
+// ─── Rule constants ──────────────────────────────────────────
 
-const quotaCount = async (sid, day, weekId) => {
-  const isWknd = WEEKEND_DAYS.has(day);
-  return await Booking.countDocuments({
-    weekId,
-    night: false,
-    day: isWknd ? { $in: ['sat', 'sun'] } : { $nin: ['sat', 'sun'] },
-    'members.sid': sid,
-  });
-};
+const WEEKEND_DAYS  = new Set(['sat', 'sun']);
+const WEEKDAY_SET   = new Set(['mon', 'tue', 'wed', 'thu', 'fri']);
+const PRIME_STARTS  = new Set(['18:00', '19:00', '20:00']); // 18:00–21:00
+const LOCKED_STARTS = new Set(['06:00', '07:00']);           // 06:00–08:00 locked
+
+// ─── GET bookings (public) ────────────────────────────────────
 
 const getBookings = async (req, res) => {
   try {
@@ -49,47 +48,60 @@ const getBookings = async (req, res) => {
         band: b.band, members: b.members, at: b.createdAt,
       };
     }
-
     return res.status(200).json({ bookings: bookingsMap, weekId, mode });
   } catch (error) {
     return res.status(500).json({ message: 'Could not fetch bookings', error: error.message });
   }
 };
 
-const WEEKDAY_SET = new Set(['mon', 'tue', 'wed', 'thu', 'fri']);
+// ─── CREATE booking ──────────────────────────────────────────
 
 const createBooking = async (req, res) => {
   try {
     const { slots: slotList, band, members: memberSids } = req.body;
 
-    if (!Array.isArray(slotList) || slotList.length === 0 || !Array.isArray(memberSids) || memberSids.length === 0) {
+    if (!Array.isArray(slotList) || slotList.length === 0 ||
+        !Array.isArray(memberSids) || memberSids.length === 0) {
       return res.status(400).json({ message: 'Missing required booking fields' });
     }
 
-    // Validate slot fields
+    // ── Rule 6: locked 06:00–08:00 ──
     for (const s of slotList) {
       if (!s.slotId || !s.day || !s.start || !s.end) {
         return res.status(400).json({ message: 'Invalid slot data' });
       }
+      if (LOCKED_STARTS.has(s.start)) {
+        return res.status(400).json({
+          message: `ช่วงเวลา ${s.start}–${s.end} ถูกล็อก (06:00–08:00 ไม่เปิดให้จองทุกกรณี)`,
+        });
+      }
     }
 
-    // Weekday: max 3 consecutive daytime hours per booking session
-    const weekdayDaytime = slotList.filter(s => !s.night && WEEKDAY_SET.has(s.day));
-    if (weekdayDaytime.length > 3) {
-      return res.status(400).json({ message: 'วันธรรมดาจองได้สูงสุด 3 ชั่วโมงต่อครั้ง' });
+    // ── Per-booking slot count limit (frontend rule, backend safety) ──
+    const daytimeSlots = slotList.filter(s => !s.night);
+    if (daytimeSlots.length > 0) {
+      const slotDay  = daytimeSlots[0].day;
+      const isWknd   = WEEKEND_DAYS.has(slotDay);
+      const maxPerBk = isWknd ? 2 : 1;
+      if (daytimeSlots.length > maxPerBk) {
+        return res.status(400).json({
+          message: `${isWknd ? 'วันเสาร์-อาทิตย์' : 'วันธรรมดา'}จองได้สูงสุด ${maxPerBk} ช่วงเวลาต่อครั้ง`,
+        });
+      }
     }
 
     const settings = await getOrCreateSettings();
     const { weekId, mode } = settings.value;
 
-    // Check no slot is already booked
+    // ── Slot conflict check ──
     for (const s of slotList) {
       const existing = await Booking.findOne({ slotId: s.slotId, weekId });
       if (existing) {
-        return res.status(409).json({ message: `ขออภัย สล็อต ${s.start}–${s.end} เพิ่งโดนจองไปเมื่อครู่ กรุณาเลือกเวลาอื่น` });
+        return res.status(409).json({ message: `ขออภัย สล็อต ${s.start}–${s.end} เพิ่งโดนจองไปเมื่อครู่` });
       }
     }
 
+    // ── Validate members ──
     const ids = memberSids.map(s => String(s).trim()).filter(Boolean);
     if (new Set(ids).size !== ids.length) {
       return res.status(400).json({ message: 'กรอกรหัสนิสิตซ้ำกันในวง กรุณาตรวจสอบใหม่' });
@@ -104,31 +116,68 @@ const createBooking = async (req, res) => {
       memberObjs.push({ sid: id, name: member.name, nickname: member.nickname, phone: member.phone });
     }
 
-    // Quota check (daytime slots only, split by weekday/weekend)
-    if (mode !== 'buffet') {
-      const newWkday = slotList.filter(s => !s.night && WEEKDAY_SET.has(s.day)).length;
-      const newWkend = slotList.filter(s => !s.night && WEEKEND_DAYS.has(s.day)).length;
+    const finalBand = (band || '').trim() || 'ซ้อมส่วนตัว';
 
-      for (const id of ids) {
-        if (newWkday > 0) {
-          const existing = await quotaCount(id, 'mon', weekId);
-          if (existing + newWkday > 3) {
-            const m = memberObjs.find(mo => mo.sid === id);
-            return res.status(400).json({ message: `สมาชิก ${m ? m.name : id} ใช้โควตาวันธรรมดา (สูงสุด 3 ชม./สัปดาห์) เต็มแล้ว!` });
-          }
+    // ── Rule 9: private practice only in buffet mode ──
+    if (mode !== 'buffet' && finalBand === 'ซ้อมส่วนตัว') {
+      return res.status(400).json({
+        message: 'การจองแบบซ้อมส่วนตัวเปิดได้เฉพาะในโหมด Free Buffet เท่านั้น',
+      });
+    }
+
+    // ── Quota checks (launch mode, daytime slots only) ──
+    if (mode !== 'buffet' && daytimeSlots.length > 0) {
+      const slotDay = daytimeSlots[0].day;
+      const isWknd  = WEEKEND_DAYS.has(slotDay);
+      const dailyMax = isWknd ? 6 : 3;
+
+      // Rule 2/3: daily quota per band
+      const existingDay = await Booking.countDocuments({
+        weekId, band: finalBand, day: slotDay, night: false,
+      });
+      if (existingDay + daytimeSlots.length > dailyMax) {
+        return res.status(400).json({
+          message: `วง "${finalBand}" ใช้โควตาประจำวัน${isWknd ? 'เสาร์/อาทิตย์' : 'ธรรมดา'} ` +
+                   `(สูงสุด ${dailyMax} ชม./วัน) เต็มแล้ว`,
+        });
+      }
+
+      // Rule 4: weekly total quota per band (6h)
+      const existingWeek = await Booking.countDocuments({ weekId, band: finalBand, night: false });
+      if (existingWeek + daytimeSlots.length > 6) {
+        return res.status(400).json({
+          message: `วง "${finalBand}" ใช้โควตาสะสมสัปดาห์ (สูงสุด 6 ชม./สัปดาห์) เต็มแล้ว`,
+        });
+      }
+
+      // Rule 5: Prime Time 18:00–21:00 — max 2h/day, no consecutive
+      const newPrime = daytimeSlots.filter(s => PRIME_STARTS.has(s.start));
+      if (newPrime.length > 0) {
+        const existingPrime = await Booking.find({
+          weekId, band: finalBand, day: slotDay, night: false,
+          start: { $in: ['18:00', '19:00', '20:00'] },
+        }).lean();
+
+        const allPrime = new Set([
+          ...existingPrime.map(b => b.start),
+          ...newPrime.map(s => s.start),
+        ]);
+
+        if (allPrime.size > 2) {
+          return res.status(400).json({
+            message: `วง "${finalBand}" ใช้โควตา Prime Time (18:00–21:00) เต็มแล้ว (สูงสุด 2 ชม./วัน)`,
+          });
         }
-        if (newWkend > 0) {
-          const existing = await quotaCount(id, 'sat', weekId);
-          if (existing + newWkend > 6) {
-            const m = memberObjs.find(mo => mo.sid === id);
-            return res.status(400).json({ message: `สมาชิก ${m ? m.name : id} ใช้โควตาเสาร์-อาทิตย์ (สูงสุด 6 ชม./สัปดาห์) เต็มแล้ว!` });
-          }
+        if ((allPrime.has('18:00') && allPrime.has('19:00')) ||
+            (allPrime.has('19:00') && allPrime.has('20:00'))) {
+          return res.status(400).json({
+            message: 'ห้ามจองช่วง Prime Time (18:00–21:00) ต่อเนื่องกัน — เว้นช่วงอย่างน้อย 1 สล็อต',
+          });
         }
       }
     }
 
-    const finalBand = (band || '').trim() || 'ซ้อมส่วนตัว';
-
+    // ── Create bookings ──
     for (const s of slotList) {
       await Booking.create({
         slotId: s.slotId, weekId, day: s.day, start: s.start, end: s.end,
@@ -145,6 +194,8 @@ const createBooking = async (req, res) => {
   }
 };
 
+// ─── Mode controls ────────────────────────────────────────────
+
 const getMode = async (req, res) => {
   try {
     const settings = await getOrCreateSettings();
@@ -157,7 +208,7 @@ const getMode = async (req, res) => {
 const setMode = async (req, res) => {
   try {
     const { state } = req.body;
-    const settings = await getOrCreateSettings();
+    const settings  = await getOrCreateSettings();
 
     if (state === 'state1') {
       const weekId = getCurrentWeekId();

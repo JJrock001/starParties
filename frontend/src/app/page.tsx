@@ -81,7 +81,14 @@ function daySlots(day: typeof DAYS[number]): { day: SlotDef[]; night: SlotDef[] 
 }
 const slotLabel = (s: { start:string; end:string }) => `${s.start}–${s.end}`;
 
-const WEEKDAY_KEYS = new Set(["mon","tue","wed","thu","fri"]);
+const WEEKDAY_KEYS  = new Set(["mon","tue","wed","thu","fri"]);
+const PRIME_STARTS  = new Set(["18:00","19:00","20:00"]); // Prime Time 18:00–21:00
+const MAX_WDAY = 1; // max slots per booking on weekdays
+const MAX_WEND = 2; // max slots per booking on weekends
+
+function isPrimeSlot(slot: SlotDef) {
+  return !slot.night && PRIME_STARTS.has(slot.start);
+}
 
 // Deterministic color per band name
 const BAND_COLORS = [
@@ -689,19 +696,19 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
   const flatSlots: Record<string, SlotDef> = {};
   DAYS.forEach(d => { const s = daySlots(d); [...s.day,...s.night].forEach(x => { flatSlots[x.id]=x; }); });
 
-  // Weekday daytime bookings are capped at 3 consecutive hours per session
-  const MAX_CONSECUTIVE_WEEKDAY = 3;
-
   function pickSlot(slot: SlotDef) {
     if (bookings[slot.id]) return;
     setError(null);
 
+    const isWeekday = WEEKDAY_KEYS.has(slot.day);
+    const maxSlots  = isWeekday ? MAX_WDAY : MAX_WEND;
+
     if (selected.length === 0) { setSelected([slot.id]); return; }
 
-    // Different day → reset to this slot
+    // Different day → reset
     if (flatSlots[selected[0]].day !== slot.day) { setSelected([slot.id]); return; }
 
-    // Already selected → allow deselecting edge slots only
+    // Already selected → deselect from edge only
     if (selected.includes(slot.id)) {
       const edges = getChainEdges(selected, flatSlots);
       if (edges && (slot.id === edges.headId || slot.id === edges.tailId)) {
@@ -712,17 +719,26 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
       return;
     }
 
-    // Check weekday consecutive cap before extending
-    const isWeekday = WEEKDAY_KEYS.has(slot.day) && !slot.night;
-    const currentDaytimeCount = selected.filter(id => !flatSlots[id].night).length;
-    if (isWeekday && currentDaytimeCount >= MAX_CONSECUTIVE_WEEKDAY) {
-      setError(`วันธรรมดาจองได้สูงสุด ${MAX_CONSECUTIVE_WEEKDAY} ชั่วโมงต่อครั้ง`);
+    // Max slots per booking (daytime only)
+    const currentDay = selected.filter(id => !flatSlots[id].night).length;
+    if (!slot.night && currentDay >= maxSlots) {
+      setError(isWeekday
+        ? "วันธรรมดาจองได้ 1 ช่วงเวลาต่อครั้ง"
+        : "วันเสาร์-อาทิตย์จองได้ไม่เกิน 2 ช่วงเวลาต่อครั้ง");
       return;
     }
 
-    // Adjacent to current selection → extend; otherwise reset
+    // Must be adjacent to extend
     const edges = getChainEdges(selected, flatSlots);
     if (edges && (slot.end === flatSlots[edges.headId].start || slot.start === flatSlots[edges.tailId].end)) {
+      // Rule 5: Prime Time consecutive block (any day)
+      const adjSlot = slot.end === flatSlots[edges.headId].start
+        ? flatSlots[edges.headId]
+        : flatSlots[edges.tailId];
+      if (isPrimeSlot(slot) && isPrimeSlot(adjSlot)) {
+        setError("ช่วง Prime Time (18:00–21:00) ห้ามจองสล็อตต่อเนื่องกัน");
+        return;
+      }
       setSelected([...selected, slot.id]);
     } else {
       setSelected([slot.id]);
@@ -842,11 +858,11 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
               })()}
               <SlotLegend/>
               <div className="grid-block">
-                <div className="grid-banner">WEEKDAYS · จันทร์–ศุกร์ <span>17:00+ · สูงสุด 3 ชม./ครั้ง · 3 ชม./สัปดาห์</span></div>
+                <div className="grid-banner">WEEKDAYS · จันทร์–ศุกร์ <span>17:00+ · 1 ช่วง/ครั้ง · 3 ชม./วัน · Prime Time 18:00–21:00 ห้ามติดกัน</span></div>
                 {DAYS.filter(d => !d.wk).map(d => (
                   <DayRow key={d.key} day={d} bookings={bookings} selected={selected} onPick={pickSlot}/>
                 ))}
-                <div className="grid-banner alt">WEEKENDS · เสาร์–อาทิตย์ <span>เปิด 24 ชม.</span></div>
+                <div className="grid-banner alt">WEEKENDS · เสาร์–อาทิตย์ <span>08:00+ · 2 ช่วง/ครั้ง · 6 ชม./วัน · Prime Time 18:00–21:00 ห้ามติดกัน</span></div>
                 {DAYS.filter(d => d.wk).map(d => (
                   <DayRow key={d.key} day={d} bookings={bookings} selected={selected} onPick={pickSlot}/>
                 ))}
@@ -855,7 +871,7 @@ function BookingModal({ onClose, bookings, mode, onRefresh }: {
 
             {/* Mode badge */}
             <div style={{fontSize:13,fontFamily:"var(--font-en)",fontWeight:700,opacity:0.6}}>
-              MODE: {mode === "buffet" ? "BUFFET · ไม่จำกัดโควตา" : "LAUNCH · วันธรรมดา 3 ชม./สัปดาห์ · เสาร์-อาทิตย์ 6 ชม./สัปดาห์"}
+              MODE: {mode === "buffet" ? "FREE BUFFET · ปลดล็อกทุกโควตา" : "LAUNCH · จ-ศ 1ช่วง/ครั้ง 3ชม./วัน · ส-อ 2ช่วง/ครั้ง 6ชม./วัน · รวม 6ชม./สัปดาห์/วง"}
             </div>
 
             <button className="modal-submit red" type="submit" disabled={submitting}>
@@ -892,7 +908,7 @@ function TestPanel({ mode, bookingCount, onStateChange }: {
         <div className="tp-state">
           <span className="tp-k">MODE</span>
           <span className={"tp-badge " + (mode === "buffet" ? "b" : "r")}>
-            {mode === "buffet" ? "BUFFET · ไม่จำกัดโควตา" : "LAUNCH · จ-ศ 3ชม. / ส-อ 6ชม."}
+            {mode === "buffet" ? "FREE BUFFET · ปลดล็อก" : "LAUNCH · จ-ศ 1ช่วง · ส-อ 2ช่วง"}
           </span>
         </div>
         <button className="tp-btn r" onClick={() => trigger("state1")} disabled={loading}>
