@@ -448,7 +448,8 @@ function Footer({ onOpen }: { onOpen:(m:ModalType)=>void }) {
         <div className="foot-cell">
           <span className="k">Find Us</span>
           <div className="foot-soc">
-            <a href="https://www.instagram.com/starparty.tu" target="_blank" rel="noopener noreferrer"><Dot cls="dot"/>Instagram · @starparty.tu</a>
+            <a href="https://www.instagram.com/starparty.aptu?igsh=MTM4MzF3NDdseHQwaw==" target="_blank" rel="noopener noreferrer"><Dot cls="dot"/>Instagram · @starparty.aptu</a>
+            <a href="https://www.tiktok.com/@starparty.aptu?_r=1&_t=ZS-96xBt0YB3Ke" target="_blank" rel="noopener noreferrer"><Dot cls="dot"/>TikTok · Starparty.aptu</a>
             <a href="https://www.facebook.com/STARPARTY" target="_blank" rel="noopener noreferrer"><Dot cls="dot"/>Facebook · STARPARTY</a>
             <a href="https://line.me/R/ti/p/@starparty" target="_blank" rel="noopener noreferrer"><Dot cls="dot"/>LINE OA · @starparty</a>
             <a href="https://www.youtube.com/@STARPARTYLIVE" target="_blank" rel="noopener noreferrer"><Dot cls="dot"/>YouTube · STARPARTY LIVE</a>
@@ -791,14 +792,25 @@ function BookingModal({ onClose, bookings, mode, weekId, onRefresh }: {
     }
 
     // Must be adjacent to extend; otherwise start a new selection
+    // night_late (23:00-00:00) must NOT connect to night_early (00:00-06:00) on the same day —
+    // their "00:00" boundary strings match but they are ~23 hours apart, not consecutive.
+    const isNightLate = (s: SlotDef) => s.night && s.start === "23:00";
+    const isNightEarly = (s: SlotDef) => s.night && s.start !== "23:00";
     const edges = getChainEdges(selected, flatSlots);
-    if (edges && (slot.end === flatSlots[edges.headId].start || slot.start === flatSlots[edges.tailId].end)) {
-      // Launch mode: check Prime Time rule; Buffet mode: no limits
-      if (mode === 'launch' && maxPrimeRun([...selected, slot.id], flatSlots) > 2) {
-        setError("Prime Time (18:00–21:00) ห้ามจองต่อเนื่องเกิน 2 ชั่วโมง");
-        return;
+    if (edges) {
+      const headSlot = flatSlots[edges.headId];
+      const tailSlot = flatSlots[edges.tailId];
+      const canPrepend = slot.end === headSlot.start && !(isNightLate(slot) && isNightEarly(headSlot));
+      const canAppend  = slot.start === tailSlot.end  && !(isNightLate(tailSlot) && isNightEarly(slot));
+      if (canPrepend || canAppend) {
+        if (mode === 'launch' && maxPrimeRun([...selected, slot.id], flatSlots) > 2) {
+          setError("Prime Time (18:00–21:00) ห้ามจองต่อเนื่องเกิน 2 ชั่วโมง");
+          return;
+        }
+        setSelected([...selected, slot.id]);
+      } else {
+        setSelected([slot.id]);
       }
-      setSelected([...selected, slot.id]);
     } else {
       setSelected([slot.id]);
     }
