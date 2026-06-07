@@ -224,31 +224,62 @@ function Nav({ onOpen }: { onOpen:(m:ModalType)=>void }) {
 
 // ─── LIVE STATUS ─────────────────────────────────────────────────────────────
 
-const STATUSES = [
-  { type:"live", th:<>วง <b>MONSOON KIDS</b> กำลังซ้อมอยู่</>, time:"17:00 – 19:00", room:"STUDIO A" },
-  { type:"open", th:<>ห้องซ้อมว่าง — <b>จองได้เลยตอนนี้</b></>, time:"จนถึง 17:00", room:"STUDIO A" },
-  { type:"live", th:<>วง <b>คอนกรีตหวาน</b> กำลังแจมสด</>, time:"19:00 – 21:00", room:"STUDIO B" },
-];
+function LiveStatus({ onOpen, bookings }: { onOpen:(m:ModalType)=>void; bookings: BookingsMap }) {
+  const [now, setNow] = useState(() => new Date());
 
-function LiveStatus({ onOpen }: { onOpen:(m:ModalType)=>void }) {
-  const [i, setI] = useState(0);
   useEffect(() => {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reducedMotion) return;
-    const t = setInterval(() => setI(n => (n + 1) % STATUSES.length), 4200);
+    // Tick every 60 s to keep the status current
+    const t = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(t);
   }, []);
-  const s = STATUSES[i];
-  const isLive = s.type === "live";
+
+  // Convert to Bangkok time (UTC+7)
+  const bkk    = new Date(now.getTime() + (7 * 60 + now.getTimezoneOffset()) * 60_000);
+  const DAY_KEYS = ["sun","mon","tue","wed","thu","fri","sat"] as const;
+  const todayKey = DAY_KEYS[bkk.getDay()];
+  const hhmm   = `${String(bkk.getHours()).padStart(2,"0")}:${String(bkk.getMinutes()).padStart(2,"0")}`;
+
+  // Is a booking happening right now?  (handles midnight-crossing 23:00-00:00)
+  const isNow = (start: string, end: string) =>
+    end === "00:00" ? start <= hhmm : start <= hhmm && hhmm < end;
+
+  // Active booking right now
+  const active = Object.values(bookings).find(
+    b => b.day === todayKey && isNow(b.start, b.end)
+  ) ?? null;
+
+  // Next upcoming booking today (sorted by start time)
+  const nextUp = Object.values(bookings)
+    .filter(b => b.day === todayKey && b.start > hhmm && !isNow(b.start, b.end))
+    .sort((a, b_) => a.start.localeCompare(b_.start))[0] ?? null;
+
+  const isLive = !!active;
+
   return (
     <section id="live" className={"live " + (isLive ? "is-live" : "is-open")}>
       <Dot />
       <span className="live-key">{isLive ? "● LIVE" : "○ OPEN"}</span>
-      <span className="live-th">{s.th}</span>
+      <span className="live-th">
+        {isLive
+          ? active!.band === "ซ้อมส่วนตัว"
+            ? <>ห้องซ้อมถูกใช้งานอยู่ — <b>ซ้อมส่วนตัว</b></>
+            : <>วง <b>{active!.band}</b> กำลังซ้อมอยู่</>
+          : nextUp
+            ? <>ห้องซ้อมว่าง — ถัดไป <b>{nextUp.band}</b> {nextUp.start} น.</>
+            : <>ห้องซ้อมว่าง — <b>จองได้เลยตอนนี้</b></>
+        }
+      </span>
       <div className="live-meta">
-        <span>{s.time}</span>
+        <span>
+          {isLive
+            ? `${active!.start} – ${active!.end}`
+            : nextUp
+              ? `ว่างถึง ${nextUp.start}`
+              : "ว่างทั้งวัน"
+          }
+        </span>
         <span className="sep" />
-        <span>{s.room}</span>
+        <span>STUDIO</span>
         {!isLive && <><span className="sep" /><button className="live-key" onClick={() => onOpen("booking")}>จองเลย →</button></>}
       </div>
     </section>
@@ -1022,6 +1053,9 @@ export default function HomePage() {
   useEffect(() => {
     fetchBookings();
     fetch("/api/activities").then(r => r.ok ? r.json() : null).then(d => { if (d?.activities) setEvents(d.activities); }).catch(() => {});
+    // Re-fetch bookings every 60 s so the live banner stays in sync
+    const t = setInterval(fetchBookings, 60_000);
+    return () => clearInterval(t);
   }, []);
 
   const handleStateChange = async (state: "state1"|"state2") => {
@@ -1042,7 +1076,7 @@ export default function HomePage() {
     <>
       <div className="app" id="top">
         <Nav onOpen={openModal}/>
-        <LiveStatus onOpen={openModal}/>
+        <LiveStatus onOpen={openModal} bookings={bookings}/>
         <Marquee/>
         <Hero onOpen={openModal}/>
         <About/>
