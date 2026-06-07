@@ -288,21 +288,25 @@ function LiveStatus({ onOpen, bookings }: { onOpen:(m:ModalType)=>void; bookings
 
 // ─── MARQUEE ─────────────────────────────────────────────────────────────────
 
-const NEWS = [
+const NEWS_STATIC = [
   "ตารางซ้อมสัปดาห์นี้เต็มไวมาก จองล่วงหน้าได้เลย",
   "อย่าลืมรักษาความสะอาดห้องซ้อม เก็บสายแจ็คเข้าที่ทุกครั้ง",
-  "STAR JAM #05 เปิดรับวงแล้ว — ส่งชื่อวงในไลน์กลุ่ม",
   "Open Mic Night ศุกร์นี้ 20:00 ที่ Common Room ใครก็ขึ้นได้",
   "รับสมัครสมาชิกใหม่ปีการศึกษา 2569 ไม่จำกัดชั้นปี",
 ];
 
-function Marquee() {
+function Marquee({ events }: { events: ActivityItem[] }) {
+  // Build news items: static base + one item per activity
+  const items = [
+    ...NEWS_STATIC,
+    ...events.map(e => `${e.name} · ${e.date}${e.nameTh ? " · " + e.nameTh : ""}`),
+  ];
   const row = (
     <div className="marquee-track" aria-hidden="false">
       <span className="marquee-label" style={{paddingLeft:16}}>★ STARPARTY NEWS</span>
-      {NEWS.map((n,idx) => <span className="marquee-item" key={idx}><Star cls="star"/>{n}</span>)}
+      {items.map((n,idx) => <span className="marquee-item" key={idx}><Star cls="star"/>{n}</span>)}
       <span className="marquee-label">★ STARPARTY NEWS</span>
-      {NEWS.map((n,idx) => <span className="marquee-item" key={"b"+idx}><Star cls="star"/>{n}</span>)}
+      {items.map((n,idx) => <span className="marquee-item" key={"b"+idx}><Star cls="star"/>{n}</span>)}
     </div>
   );
   return <div className="marquee">{row}</div>;
@@ -1077,7 +1081,7 @@ export default function HomePage() {
       <div className="app" id="top">
         <Nav onOpen={openModal}/>
         <LiveStatus onOpen={openModal} bookings={bookings}/>
-        <Marquee/>
+        <Marquee events={events}/>
         <Hero onOpen={openModal}/>
         <About/>
         <Activity onOpen={openModal} events={events}/>
