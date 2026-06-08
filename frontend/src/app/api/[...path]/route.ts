@@ -30,8 +30,12 @@ const proxyRequest = async (request: NextRequest) => {
     statusText: upstream.statusText,
   });
 
+  // Copy upstream headers but strip encoding/length headers — the body has
+  // already been decoded to text by Node fetch, so re-sending these headers
+  // causes browsers to double-decode and fail with "cannot decode raw data".
+  const STRIP = new Set(['content-encoding', 'content-length', 'transfer-encoding']);
   upstream.headers.forEach((value, key) => {
-    response.headers.set(key, value);
+    if (!STRIP.has(key.toLowerCase())) response.headers.set(key, value);
   });
 
   return response;
