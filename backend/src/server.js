@@ -3,8 +3,9 @@ require('dotenv').config();
 const cors = require('cors');
 const express = require('express');
 
-const connectDB = require('./config/db');
-const apiRoutes = require('./routes');
+const connectDB  = require('./config/db');
+const apiRoutes  = require('./routes');
+const scheduler  = require('./scheduler');
 
 const app = express();
 const port = process.env.PORT || 5001;
@@ -46,6 +47,8 @@ const start = async () => {
     app.listen(port, () => {
       console.log(`API running on http://localhost:${port}`);
     });
+
+    scheduler.start();
   } catch (err) {
     console.error('Failed to start server:', err.message || err);
     process.exit(1);
