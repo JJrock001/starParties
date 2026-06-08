@@ -9,7 +9,14 @@ const scheduler  = require('./scheduler');
 
 const app = express();
 const port = process.env.PORT || 5001;
-const frontendOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
+// Support multiple allowed origins via comma-separated FRONTEND_URL
+// e.g. FRONTEND_URL=https://star-parties.vercel.app,https://mycustomdomain.com
+const allowedOrigins = new Set(
+  (process.env.FRONTEND_URL || 'http://localhost:3000')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+);
 
 const isAllowedLocalOrigin = (origin) => {
   try {
@@ -23,10 +30,9 @@ const isAllowedLocalOrigin = (origin) => {
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || origin === frontendOrigin || isAllowedLocalOrigin(origin)) {
+      if (!origin || allowedOrigins.has(origin) || isAllowedLocalOrigin(origin)) {
         return callback(null, true);
       }
-
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
